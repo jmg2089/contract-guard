@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>근로계약서 독소조항 검사</title>
+<style>
+  :root {
+    --bg: #fafaf9; --fg: #1c1917; --muted: #78716c; --line: #e7e5e4; --card: #ffffff;
+    --red: #b3261e; --red-bg: #fdecea; --amber: #8a6100; --amber-bg: #fff6e0; --green: #1f6f43;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif;
+    line-height: 1.65;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 16px 80px; }
+  h1 { font-size: 1.6rem; margin: 0 0 8px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 0.92rem; margin: 0 0 28px; }
+  textarea {
+    width: 100%; min-height: 220px; padding: 14px; border: 1px solid var(--line);
+    border-radius: 10px; font-family: inherit; font-size: 0.93rem; line-height: 1.6;
+    resize: vertical; background: var(--card); color: var(--fg);
+  }
+  textarea:focus { outline: 2px solid #44403c; outline-offset: -1px; }
+  .row { display: flex; align-items: center; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+  button {
+    background: #1c1917; color: #fff; border: 0; padding: 10px 22px;
+    border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+  }
+  button:hover { background: #44403c; }
+  label { font-size: 0.88rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 32px 0 8px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .stat .n { font-size: 1.7rem; font-weight: 700; letter-spacing: -0.02em; }
+  .stat .k { font-size: 0.78rem; color: var(--muted); }
+  .stat.gate { border-color: #a8a29e; background: #f5f5f4; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin-top: 16px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.76rem; font-weight: 700; }
+  .violation { background: var(--red-bg); color: var(--red); }
+  .unfavorable { background: var(--amber-bg); color: var(--amber); }
+  .src { color: var(--muted); font-size: 0.76rem; }
+  .clause { color: #57534e; font-size: 0.9rem; border-left: 3px solid var(--line); padding: 4px 12px; margin: 12px 0; }
+  .quote { font-size: 0.89rem; color: #44403c; border-left: 3px solid currentColor; padding: 6px 12px; margin: 8px 0; }
+  .k { font-weight: 700; font-size: 0.86rem; }
+  code { background: #f5f5f4; padding: 1px 6px; border-radius: 4px; font-size: 0.83rem; }
+  details { margin-top: 24px; font-size: 0.88rem; color: var(--muted); }
+  .warn { background: var(--amber-bg); color: var(--amber); padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 20px; }
+  .ok-msg { background: #e9f6ee; color: var(--green); padding: 14px 16px; border-radius: 10px; margin-top: 24px; }
+  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.82rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>근로계약서 독소조항 검사기</h1>
+  <p class="sub">
+    계약서 조항을 근로기준법 조문과 대조해 위반·불리 조항을 찾습니다.
+    <strong>법 문장을 생성하지 않습니다</strong> &mdash; 근거는 언제나 법령 원문에서 그대로 인용되며,
+    원문과 일치하지 않는 판정은 결과에 오르지 못합니다.
+  </p>
+
+  {% if unverified %}
+  <div class="warn">
+    공식 원문으로 검증되지 않은 조문이 {{ unverified }}개 있습니다. 제출 전 법제처 원문으로 교체해야 합니다.
+  </div>
+  {% endif %}
+
+  <form method="post">
+    <textarea name="text" placeholder="근로계약서 전문을 붙여넣으세요">{{ text }}</textarea>
+    <div class="row">
+      <button type="submit">검사하기</button>
+      <label><input type="checkbox" name="use_llm"> LLM 판정 추가 (선택 &mdash; 끄면 룰 + 학습 모델만)</label>
+      <span class="src">법조문 {{ law_count }}개 · {{ min_wage_year }}년 최저임금 시급 {{ "{:,}".format(min_wage) }}원 기준</span>
+    </div>
+  </form>
+
+  {% if result %}
+    {% set m = result.meta %}
+    <div class="stats">
+      <div class="stat"><div class="n">{{ m.clause_count }}</div><div class="k">검토한 조항</div></div>
+      <div class="stat"><div class="n" style="color:var(--red)">{{ m.violation_count }}</div><div class="k">위반 소지</div></div>
+      <div class="stat"><div class="n" style="color:var(--amber)">{{ m.unfavorable_count }}</div><div class="k">불리 조항</div></div>
+      <div class="stat gate"><div class="n">{{ m.blocked_by_gate }}</div><div class="k">인용 검증에서 차단</div></div>
+    </div>
+    <p class="src">룰 검사 {{ m.rule_findings }}건 · 학습 모델 {{ m.model_findings }}건 · LLM {{ m.llm_findings }}건</p>
+
+    {% if not result.findings %}
+      <div class="ok-msg">법조문과 대조해 문제되는 조항을 찾지 못했습니다.</div>
+    {% endif %}
+
+    {% for f in result.findings %}
+    <div class="card">
+      <span class="badge {{ f.severity }}">{{ f.severity_label }}</span>
+      <strong style="margin-left:6px">{{ f.clause_title }}</strong>
+      <span class="src">· {{ {'rule':'룰 검사','model':'학습 모델','llm':'LLM 판정'}[f.source] }}</span>
+      <div class="clause">{{ f.clause_text[:400] }}{% if f.clause_text|length > 400 %}…{% endif %}</div>
+      <div><span class="k">왜 문제인가</span> — {{ f.reason }}</div>
+      <div style="margin-top:8px"><span class="k">근거</span> — <code>{{ f.law_label }}</code></div>
+      <div class="quote" style="color:{{ 'var(--red)' if f.severity == 'violation' else 'var(--amber)' }}">{{ f.quote }}</div>
+      {% if f.suggestion %}<div><span class="k">대체 문구 제안</span> — {{ f.suggestion }}</div>{% endif %}
+    </div>
+    {% endfor %}
+
+    {% if result.dropped %}
+    <details>
+      <summary>인용 검증에서 차단된 판정 {{ result.dropped|length }}건 보기</summary>
+      <p>모델이 내놓았지만 근거 조문이 검색 결과에 없거나 인용문이 원문과 일치하지 않아 사용자에게 표시하지 않은 판정입니다.</p>
+      <ul>
+      {% for d in result.dropped %}
+        <li><code>{{ d.clause_id }}</code> → 주장한 근거 <code>{{ d.claimed_law_id or '(없음)' }}</code> · 인용 &ldquo;{{ d.claimed_quote[:60] or '(없음)' }}&rdquo;</li>
+      {% endfor %}
+      </ul>
+    </details>
+    {% endif %}
+  {% endif %}
+
+  <footer>
+    이 도구는 법률 자문이 아닙니다. 참고용 검토 결과이며, 실제 분쟁이나 계약 체결 판단은
+    노무사·변호사 또는 고용노동부 상담(☎1350)을 통해 확인하십시오.
+  </footer>
+
+</div>
+</body>
+</html>

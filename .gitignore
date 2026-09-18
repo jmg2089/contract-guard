@@ -1,0 +1,7 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+
+# 분류기 모델은 빌드 시 학습해서 만든다 (sklearn 버전 불일치 방지)
+data/clause_clf.joblib
