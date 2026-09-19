@@ -167,16 +167,6 @@
 
                     <div class="faq-list">
                         <details>
-                            <summary>Overfit은 어떤 서비스인가요?</summary>
-                            <p>
-                                Overfit은 근로계약서의 임금, 근로시간, 휴일, 수습기간, 위약금 등 
-                                주요 조건을 점검하고 확인이 필요한 조항을 관련 법령과 함께 
-                                안내하는 서비스입니다. 계약서를 직접 입력하거나 
-                                지원되는 문서 파일을 제출하여 점검할 수 있습니다.
-                            </p>
-                        </details>
-
-                        <details>
                             <summary>점검 결과를 법률 자문으로 볼 수 있나요?</summary>
                             <p>
                                 아닙니다. Overfit의 점검 결과는 근로계약서 검토를 돕기 위한 참고 정보이며 
@@ -962,7 +952,7 @@
                 </div>
 
                 <nav class="footer-links" aria-label="푸터 메뉴">
-                    <a href="#">서비스 소개</a>
+                    <a href="#" id="openServiceModal">서비스 소개</a>
                     <a href="#">이용약관</a>
                     <a href="#" >개인정보처리방침</a>
                     <a href="#" id="openContactModal">문의하기</a>
@@ -1112,6 +1102,51 @@
             </div>
         </div>
     </footer>
+
+    <div
+        id="serviceModal"
+        class="service-modal"
+        aria-hidden="true"
+        hidden
+    >
+        <div
+            class="service-modal-box"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="serviceModalTitle"
+        >
+            <button
+                type="button"
+                id="closeServiceModal"
+                class="service-modal-close"
+                aria-label="서비스 소개 닫기"
+            >
+                ×
+            </button>
+
+            <p class="service-modal-label">ABOUT OVERFIT</p>
+
+            <h2 id="serviceModalTitle">
+                Overfit은 어떤 서비스인가요?
+            </h2>
+
+            <p class="service-modal-description">
+                Overfit은 근로계약서의 임금, 근로시간, 휴일,
+                수습기간, 위약금 등 주요 조건을 점검하고,
+                확인이 필요한 조항을 관련 법령과 함께 안내하는 서비스입니다.
+            </p>
+
+            <p class="service-modal-description">
+                계약서를 직접 입력하거나 PDF 파일로 업로드할 수 있으며,
+                점검 결과와 관련 법령, 위험도 및 수정 제안을 확인할 수 있습니다.
+            </p>
+
+            <div class="service-modal-notice">
+                점검 결과는 정보 제공을 위한 참고 자료이며,
+                법률 자문이나 법적 판단을 대신하지 않습니다.
+            </div>
+        </div>
+    </div>
 
     <script>
         const pages = {
@@ -1287,9 +1322,74 @@
                 activeInputType === "file" ? !hasFile : !hasText;
         }
 
-        analyzeButton.addEventListener("click", () => {
-            showPage("loading");
-            runLoadingAnimation();
+        analyzeButton.addEventListener("click", async () => {
+            // 현재는 직접 입력 분석부터 백엔드와 연결
+            if (activeInputType !== "text") {
+                window.alert("PDF 분석 기능은 별도로 연결 중입니다.");
+                return;
+            }
+
+            const text = contractText.value.trim();
+
+            if (!text) {
+                window.alert("근로계약서 내용을 입력해 주세요.");
+                return;
+            }
+
+            analyzeButton.disabled = true;
+
+            try {
+                const response = await fetch("/api/analyze", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        use_llm: false
+                    })
+                });
+
+                const result = await response.json();
+
+                // analyzer.py의 validate_contract_input()에서 실패
+                if (!response.ok) {
+                    window.alert(
+                        result.message ||
+                        result.error ||
+                        "계약서를 확인할 수 없습니다."
+                    );
+
+                    return;
+                }
+
+                // 혹시 HTTP 200으로 error가 넘어오는 경우도 방어
+                if (result.error) {
+                    window.alert(
+                        result.message ||
+                        "근로계약서 내용을 확인해 주세요."
+                    );
+
+                    return;
+                }
+
+                // 실제 분석 결과 저장
+                window.contractAnalysisResult = result;
+
+                // 검증을 통과한 경우에만 로딩 화면으로 이동
+                showPage("loading");
+                runLoadingAnimation();
+
+            } catch (error) {
+                console.error("계약서 분석 오류:", error);
+
+                window.alert(
+                    "서버와 통신하는 중 오류가 발생했습니다."
+                );
+            } finally {
+                analyzeButton.disabled = false;
+                updateAnalyzeButton();
+            }
         });
 
         function runLoadingAnimation() {
@@ -1596,6 +1696,53 @@
             } finally {
                 submitButton.disabled = false;
                 submitButton.textContent = "문의 보내기";
+            }
+        });
+        const serviceModal =
+            document.getElementById("serviceModal");
+
+        const openServiceModalButton =
+            document.getElementById("openServiceModal");
+
+        const closeServiceModalButton =
+            document.getElementById("closeServiceModal");
+
+        function openServiceModal() {
+            serviceModal.hidden = false;
+            serviceModal.classList.add("open");
+            serviceModal.setAttribute("aria-hidden", "false");
+            document.body.classList.add("modal-open");
+        }
+
+        function closeServiceModal() {
+            serviceModal.classList.remove("open");
+            serviceModal.hidden = true;
+            serviceModal.setAttribute("aria-hidden", "true");
+            document.body.classList.remove("modal-open");
+        }
+
+        openServiceModalButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            openServiceModal();
+        });
+
+        closeServiceModalButton.addEventListener(
+            "click",
+            closeServiceModal
+        );
+
+        serviceModal.addEventListener("click", (event) => {
+            if (event.target === serviceModal) {
+                closeServiceModal();
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (
+                event.key === "Escape" &&
+                serviceModal.classList.contains("open")
+            ) {
+                closeServiceModal();
             }
         });
     </script>

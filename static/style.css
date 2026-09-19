@@ -2591,3 +2591,36 @@ body.modal-open {
     cursor: wait;
     opacity: 0.65;
 }
+.service-modal[hidden] {
+    display: none;
+}
+
+.service-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 39, 66, 0.55);
+}
+
+.service-modal-box {
+    position: relative;
+    width: min(520px, 100%);
+    padding: 38px;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 24px 70px rgba(15, 39, 66, 0.24);
+}
+
+.service-modal-close {
+    position: absolute;
+    top: 18px;
+    right: 20px;
+    border: 0;
+    background: transparent;
+    font-size: 28px;
+    cursor: pointer;
+}

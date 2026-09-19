@@ -1,31 +1,4 @@
-"""통합용 단일 진입점 — 프론트엔드 프로젝트에 붙일 때 이 파일 하나만 보면 된다.
-
-강수현 님이 만든 Flask 앱에 붙이는 방법:
-
-    1) 이 프로젝트의 다음을 프론트 프로젝트 루트로 복사한다
-         core/          판정 로직
-         data/          법령 원문 + 학습 데이터
-         scripts/       분류기 학습 스크립트
-         config.py      상수
-         analyzer.py    이 파일
-         requirements.txt
-
-    2) 분류기를 한 번 학습시킨다 (10초)
-         python scripts/train_classifier.py
-
-    3) 기존 Flask 라우트에서 함수 하나만 호출한다
-
-         from analyzer import analyze_contract
-
-         @app.route("/", methods=["GET", "POST"])
-         def index():
-             result = None
-             if request.method == "POST":
-                 result = analyze_contract(request.form.get("text", ""))
-             return render_template("index.html", result=result)
-
-기존 라우트 구조를 바꿀 필요가 없다. 반환값 스키마는 FRONTEND.md 4번에 있다.
-"""
+import re
 from core.pipeline import analyze
 from core.scoring import risk_score, highlights, revised_contract
 from core.retrieve import get_index
@@ -38,17 +11,99 @@ from config import (
 
 SOURCE_LABEL = {"rule": "룰 검사", "model": "학습 모델", "llm": "LLM 판정"}
 
+def validate_contract_input(text: str) -> dict:
+    """입력값이 근로계약서로 분석할 만한 내용인지 검사한다."""
+
+    text = (text or "").strip()
+
+    # 1. 너무 짧은 입력 차단
+    if len(text) < 30:
+        return {
+            "valid": False,
+            "message": "입력 내용이 너무 짧습니다. 근로계약서 내용을 입력해주세요.",
+        }
+
+    # 2. 의미 없는 자음/모음 반복 입력 차단
+    korean_syllables = len(re.findall(r"[가-힣]", text))
+    korean_jamo = len(re.findall(r"[ㄱ-ㅎㅏ-ㅣ]", text))
+
+    if korean_jamo > korean_syllables:
+        return {
+            "valid": False,
+            "message": "의미 있는 문장으로 확인되지 않습니다. 근로계약서 내용을 입력해주세요.",
+        }
+
+    # 3. 근로계약서에서 일반적으로 나타나는 핵심 표현
+    contract_keywords = [
+        "근로",
+        "근로자",
+        "사용자",
+        "회사",
+        "사업주",
+        "임금",
+        "급여",
+        "월급",
+        "시급",
+        "근무",
+        "근로시간",
+        "근무시간",
+        "휴게",
+        "휴일",
+        "연차",
+        "퇴직",
+        "계약기간",
+        "근로계약",
+    ]
+
+    keyword_count = sum(1 for keyword in contract_keywords if keyword in text)
+
+    if keyword_count < 2:
+        return {
+            "valid": False,
+            "message": "근로계약서로 확인할 수 없는 내용입니다. 근로조건, 임금, 근로시간 등이 포함된 계약서 내용을 입력해주세요.",
+        }
+
+    # 4. 어느 정도 문장 구조가 있는지 검사
+    meaningful_chars = len(re.findall(r"[가-힣A-Za-z0-9]", text))
+
+    if meaningful_chars < 20:
+        return {
+            "valid": False,
+            "message": "분석할 수 있는 계약서 내용이 부족합니다.",
+        }
+
+    return {
+        "valid": True,
+        "message": "",
+    }
 
 def analyze_contract(text: str, use_llm: bool = False) -> dict | None:
-    """계약서 원문 -> 판정 결과 딕셔너리. 입력이 비어 있으면 None.
-
-    use_llm 은 기본 False. 외부 API 없이 룰 + 학습 분류기만으로 동작한다.
-    """
     text = (text or "").strip()
+
+    print("===== ANALYZE_CONTRACT 실행 =====")
+    print("입력:", repr(text))
+
     if not text:
         return None
 
+    validation = validate_contract_input(text)
+
+    print("VALIDATION 결과:", validation)
+
+    if not validation["valid"]:
+        print("===== 입력 검증 차단 =====")
+
+        return {
+            "error": "invalid_contract",
+            "message": validation["message"],
+        }
+
+    print("===== 입력 검증 통과 =====")
+
     report = analyze(text, use_llm=use_llm)
+
+    index = get_index()
+    clause_by_id = {c.id: c for c in report.clauses}
     index = get_index()
     clause_by_id = {c.id: c for c in report.clauses}
 

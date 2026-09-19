@@ -138,8 +138,12 @@ def api_analyze():
     if not text:
         return jsonify(error="text 가 비어 있습니다"), 400
     use_llm = bool(body.get("use_llm", False))
-    return jsonify(build_payload(text, use_llm))
+    payload = build_payload(text, use_llm)
 
+    if payload.get("error") == "invalid_contract":
+        return jsonify(payload), 400
+
+    return jsonify(payload)
 
 def _samples_listing():
     from data.samples import listing
