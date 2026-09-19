@@ -1323,36 +1323,57 @@
         }
 
         analyzeButton.addEventListener("click", async () => {
-            // 현재는 직접 입력 분석부터 백엔드와 연결
-            if (activeInputType !== "text") {
-                window.alert("PDF 분석 기능은 별도로 연결 중입니다.");
-                return;
-            }
-
-            const text = contractText.value.trim();
-
-            if (!text) {
-                window.alert("근로계약서 내용을 입력해 주세요.");
-                return;
-            }
-
             analyzeButton.disabled = true;
 
             try {
-                const response = await fetch("/api/analyze", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        text: text,
-                        use_llm: false
-                    })
-                });
+                let response;
+
+                // =========================
+                // PDF 업로드
+                // =========================
+                if (activeInputType === "file") {
+                    const file = fileInput.files[0];
+
+                    if (!file) {
+                        window.alert("PDF 파일을 선택해 주세요.");
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append("file", file);
+
+                    response = await fetch("/api/analyze-pdf", {
+                        method: "POST",
+                        body: formData
+                    });
+                }
+
+                // =========================
+                // 직접 입력
+                // =========================
+                else {
+                    const text = contractText.value.trim();
+
+                    if (!text) {
+                        window.alert("근로계약서 내용을 입력해 주세요.");
+                        return;
+                    }
+
+                    response = await fetch("/api/analyze", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            text: text,
+                            use_llm: false
+                        })
+                    });
+                }
 
                 const result = await response.json();
 
-                // analyzer.py의 validate_contract_input()에서 실패
+                // 서버 검증 실패
                 if (!response.ok) {
                     window.alert(
                         result.message ||
@@ -1363,7 +1384,6 @@
                     return;
                 }
 
-                // 혹시 HTTP 200으로 error가 넘어오는 경우도 방어
                 if (result.error) {
                     window.alert(
                         result.message ||
@@ -1376,7 +1396,11 @@
                 // 실제 분석 결과 저장
                 window.contractAnalysisResult = result;
 
-                // 검증을 통과한 경우에만 로딩 화면으로 이동
+                // PDF이면 파일명 표시
+                if (activeInputType === "file" && result.filename) {
+                    resultFileName.textContent = result.filename;
+                }
+
                 showPage("loading");
                 runLoadingAnimation();
 

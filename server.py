@@ -1,23 +1,8 @@
-"""Flask 서버 — 팀원이 Flask로 프론트를 만들 때 이 파일이 두 사람의 경계선이 된다.
-
-정민규는 core/, data/, eval/ 만 건드린다.
-팀원은 templates/, static/ 만 건드린다.
-이 파일(server.py)은 둘이 합의해서만 고친다.
-
-실행:
-    python server.py
-    -> http://localhost:5000
-
-엔드포인트:
-    GET  /             화면 (templates/index.html)
-    POST /             폼 제출 -> 같은 화면에 결과 렌더링
-    POST /api/analyze  JSON API (팀원이 JS로 호출할 때)
-    GET  /api/laws     탑재된 법조문 전체
-    GET  /health       상태 확인
-"""
 import os
+import io
 
 from flask import Flask, Response, jsonify, render_template, request
+from pypdf import PdfReader
 
 from core.pipeline import analyze
 from core import classify as clf
@@ -25,6 +10,70 @@ from core.retrieve import get_index
 from config import MIN_WAGE_HOURLY, MIN_WAGE_YEAR, SEVERITY_LABEL
 
 app = Flask(__name__)
+
+@app.post("/api/analyze-pdf")
+def api_analyze_pdf():
+    if "file" not in request.files:
+        return jsonify(
+            error="missing_file",
+            message="PDF 파일을 선택해주세요."
+        ), 400
+
+    file = request.files["file"]
+
+    if not file.filename:
+        return jsonify(
+            error="missing_file",
+            message="PDF 파일을 선택해주세요."
+        ), 400
+
+    if not file.filename.lower().endswith(".pdf"):
+        return jsonify(
+            error="invalid_file",
+            message="PDF 파일만 업로드할 수 있습니다."
+        ), 400
+
+    try:
+        pdf_bytes = file.read()
+        reader = PdfReader(io.BytesIO(pdf_bytes))
+
+        pages = []
+
+        for page in reader.pages:
+            page_text = page.extract_text() or ""
+
+            if page_text.strip():
+                pages.append(page_text)
+
+        text = "\n\n".join(pages).strip()
+
+    except Exception as e:
+        app.logger.exception("PDF 텍스트 추출 실패")
+
+        return jsonify(
+            error="pdf_read_error",
+            message="PDF 파일을 읽는 중 오류가 발생했습니다."
+        ), 400
+
+    if not text:
+        return jsonify(
+            error="pdf_text_empty",
+            message=(
+                "PDF에서 텍스트를 추출할 수 없습니다. "
+                "스캔 이미지 PDF인 경우 OCR 처리가 필요합니다."
+            )
+        ), 400
+
+    payload = build_payload(text, False)
+
+    if payload.get("error") == "invalid_contract":
+        return jsonify(payload), 400
+
+    # 프론트에서 필요하면 추출된 텍스트도 확인 가능
+    payload["extracted_text"] = text
+    payload["filename"] = file.filename
+
+    return jsonify(payload)
 
 try:  # 팀원이 다른 포트/도메인에서 프론트를 띄울 경우에만 필요
     from flask_cors import CORS
