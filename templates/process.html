@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="근로계약서를 어떤 방식으로 점검하는지 설명합니다.">
+    <title>점검 방식 — 근로계약서 점검</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="/">
+                <img src="{{ url_for('static', filename='images/image.png') }}"
+                     alt="로고" class="brand-mark">
+            </a>
+        </div>
+    </header>
+
+    <main>
+        <section class="page active">
+            <section class="content-section process-section process-page">
+                <div class="section-inner">
+
+                    <div class="section-heading">
+                        <p class="eyebrow">점검 방식</p>
+                        <h2>법을 외워서 답하지 않습니다.</h2>
+                        <p class="section-lead">
+                            계약서 조항마다 관련 법조문을 찾아 원문과 글자 단위로 대조합니다.
+                            근거를 제시할 수 없는 판단은 화면에 올리지 않습니다.
+                        </p>
+                    </div>
+
+                    <ol class="process-steps">
+                        <li>
+                            <span class="process-step-no">1</span>
+                            <div>
+                                <strong>개인정보를 먼저 가립니다</strong>
+                                <p>
+                                    이름·주민등록번호·계좌번호처럼 점검에 쓰이지 않는 정보는
+                                    브라우저에서 가린 뒤 보냅니다. 사진과 스캔본은 파일 자체가
+                                    서버로 올라가지 않고 기기 안에서 글자만 읽습니다.
+                                </p>
+                            </div>
+                        </li>
+
+                        <li>
+                            <span class="process-step-no">2</span>
+                            <div>
+                                <strong>근로계약서가 맞는지 확인합니다</strong>
+                                <p>
+                                    이력서나 용역계약서에 근로기준법을 들이대면 틀린 답이 됩니다.
+                                    근로계약서가 아니면 점수를 내지 않고 왜 아닌지 알려드립니다.
+                                </p>
+                            </div>
+                        </li>
+
+                        <li>
+                            <span class="process-step-no">3</span>
+                            <div>
+                                <strong>조항별로 법조문을 찾습니다</strong>
+                                <p>
+                                    계약서를 조항 단위로 나눈 뒤, 각 조항에 관련된 법조문을
+                                    검색합니다. 숫자와 명시 문구는 정해진 규칙으로,
+                                    표현을 바꿔 쓴 조항은 학습한 모델로 찾습니다.
+                                </p>
+                            </div>
+                        </li>
+
+                        <li>
+                            <span class="process-step-no">4</span>
+                            <div>
+                                <strong>인용문을 법령 원문과 대조합니다</strong>
+                                <p>
+                                    화면에 올리기 전, 인용한 법 문장이 실제 법령 원문에
+                                    글자 그대로 있는지 확인합니다. 일치하지 않으면 그 판단은
+                                    결과에서 빼고, 몇 건을 뺐는지 함께 표시합니다.
+                                </p>
+                            </div>
+                        </li>
+                    </ol>
+
+                    <div class="process-notes">
+                        <div class="process-note">
+                            <strong>지어낸 법조문이 나올 수 없습니다</strong>
+                            <p>
+                                근거로 쓰는 법조문은 국가법령정보센터에서 받아 온 원문입니다.
+                                검색된 조문 밖의 내용은 인용할 수 없고, 인용문이 원문과
+                                다르면 그 판단 자체가 버려집니다.
+                            </p>
+                        </div>
+
+                        <div class="process-note">
+                            <strong>같은 계약서는 늘 같은 결과입니다</strong>
+                            <p>
+                                외부 AI에 문의하지 않고 정해진 규칙과 학습된 모델로만
+                                판단하므로, 같은 계약서를 여러 번 넣어도 결과가 달라지지 않습니다.
+                            </p>
+                        </div>
+
+                        <div class="process-note">
+                            <strong>계약서가 서버에 남지 않습니다</strong>
+                            <p>
+                                점검이 끝나면 내용이 메모리에서 사라집니다. 데이터베이스에
+                                저장하지 않고, 외부 업체로 보내지 않습니다.
+                            </p>
+                        </div>
+                    </div>
+
+                    <p class="process-caveat">
+                        이 점검은 법률 자문이 아닙니다. 계약서에 적히지 않은 실제 근무조건,
+                        회사 내부 규정, 개별 사정에 따라 판단이 달라질 수 있습니다.
+                        구체적인 분쟁이나 법적 판단이 필요하시면 공인노무사·변호사 또는
+                        고용노동부 고객상담센터(국번없이 1350)에 상담하시기 바랍니다.
+                    </p>
+
+                    <div class="process-cta">
+                        <a class="button button-primary button-large" href="/#upload">
+                            계약서 확인하러 가기
+                            <span aria-hidden="true">&rarr;</span>
+                        </a>
+                    </div>
+
+                    <p class="legal-back">
+                        <a href="/">&larr; 첫 화면으로 돌아가기</a>
+                    </p>
+                </div>
+            </section>
+        </section>
+    </main>
+</body>
+</html>

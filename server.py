@@ -155,6 +155,13 @@ def privacy():
     return render_template("privacy.html")
 
 
+@app.get("/process")
+def process():
+    """점검 방식 안내. 홈에서 스크롤로 보여주다가 별도 페이지로 뺐다.
+    설명이 길어 첫 화면을 밀어내고, 링크로 따로 보내기도 어려웠다."""
+    return render_template("process.html")
+
+
 @app.get("/terms")
 def terms():
     """이용약관. 법률 자문이 아니라는 점과 책임 범위를 분명히 해 두는 자리다."""

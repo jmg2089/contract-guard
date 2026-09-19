@@ -2988,3 +2988,34 @@ body.modal-open {
 }
 
 .legal-back a:hover { color: #172033; }
+
+/* 점검 방식 페이지 */
+.process-page { padding-top: 48px; background: #fff; }
+
+.process-page .process-steps li,
+.process-page .process-note { background: #f8fafc; }
+
+.process-cta {
+    margin-top: 34px;
+    padding-top: 28px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.process-cta .button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+/* 버튼 모양을 링크(<a>)에도 그대로 적용한다.
+   '점검 방식 보기'를 다른 페이지로 넘기면서 <button> 을 <a> 로 바꿨는데,
+   기본 링크 스타일(밑줄·파란색)이 남으면 버튼처럼 보이지 않는다. */
+a.button {
+    text-decoration: none;
+}
+
+a.button-secondary,
+a.button-secondary:visited {
+    color: inherit;
+}
