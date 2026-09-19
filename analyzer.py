@@ -28,6 +28,9 @@
 """
 from core.pipeline import analyze
 from core.scoring import risk_score, highlights, revised_contract
+from core.validate import validate as validate_input
+from core.doctype import classify_document
+from core.mask import mask as mask_sensitive, summary as mask_summary
 from core.retrieve import get_index
 from core import classify as _clf
 from config import (
@@ -48,6 +51,19 @@ def analyze_contract(text: str, use_llm: bool = False) -> dict | None:
     if not text:
         return None
 
+    # 판정에 쓰이지 않는 개인정보를 먼저 가린다.
+    # 주민등록번호·계좌번호는 위약금 조항이 위법인지 따지는 데 한 글자도 필요 없다.
+    # 브라우저에서 이미 가리고 보내지만(static/js/mask.js), 자바스크립트가 꺼져 있거나
+    # API 를 직접 호출하는 경우를 대비해 서버에서 한 번 더 가린다.
+    text, masked = mask_sensitive(text)
+
+    check = validate_input(text)
+
+    # 읽히기는 했는데 근로계약서가 아닌 경우를 여기서 가른다.
+    # validate_input 은 '읽혔는가'만 본다. 이력서·재직증명서는 계약 용어가 몇 개
+    # 들어 있어 그 검사를 그냥 통과하는데, 거기에 근로기준법을 들이대면 틀린 답이 된다.
+    doc = classify_document(text) if check["ok"] else None
+
     report = analyze(text, use_llm=use_llm)
     index = get_index()
     clause_by_id = {c.id: c for c in report.clauses}
@@ -67,10 +83,45 @@ def analyze_contract(text: str, use_llm: bool = False) -> dict | None:
         d["law_text"] = art.text if art else ""
         findings.append(d)
 
+    # 제17조 서면 명시 누락은 조항 단위 룰로는 잡을 수 없다.
+    # 없는 조항은 검사 대상이 되지 않기 때문이다. 문서 전체를 봐야만 나오는 판정이라
+    # 여기서 별도 항목으로 붙인다. 인용문은 조문 원문에서 가져오므로 인용 검증을 통과한다.
+    if doc and doc["kind"] == "employment" and doc.get("missing_articles"):
+        m = doc["missing_articles"]
+        art = index.get(m["law_id"])
+        findings.append({
+            "clause_id": None,
+            "severity": "violation",
+            "severity_label": SEVERITY_LABEL["violation"],
+            "source": "rule",
+            "source_label": "문서 전체 검사",
+            "law_id": m["law_id"],
+            "quote": m["quote"],
+            "reason": m["message"],
+            "suggestion": "빠진 항목을 계약서에 적어 넣고 서면으로 교부받으세요. "
+                          "명시하지 않으면 사용자에게 500만원 이하의 벌금이 부과될 수 있습니다.",
+            "clause_title": "계약서 전체",
+            "clause_text": "",
+            "law_label": f"{art.law} {art.article}({art.title})" if art else "",
+            "law_text": art.text if art else "",
+        })
+
     meta = dict(report.meta)
     meta["risk"] = risk_score(report)
+    meta["input_check"] = check
+    meta["doctype"] = doc
+    meta["masked"] = masked
+    meta["masked_message"] = mask_summary(masked)
+
+    # 근로계약서가 아니면 위험도 점수를 내보내지 않는다.
+    # 용역계약서에 "위반 0건 · 0점 · 안전"을 띄우면, 근로기준법이 적용되지 않아
+    # 검사조차 하지 않았다는 사실이 '문제 없음'으로 읽힌다. 가장 피해야 할 오해다.
+    meta["analyzable"] = doc is not None and doc["kind"] == "employment"
 
     return {
+        # 마스킹을 거친 본문. 화면의 입력창에 이 값을 되돌려 넣어야 한다.
+        # 원본을 그대로 다시 뿌리면 가린 의미가 없다 — HTML 응답에 주민번호가 그대로 실린다.
+        "text": text,
         "meta": meta,
         "highlights": highlights(report),
         "clauses": [c.to_dict() for c in report.clauses],

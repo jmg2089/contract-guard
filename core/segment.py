@@ -94,19 +94,53 @@ def extract_pdf_text(file_obj) -> str:
     return "\n".join(pages).strip()
 
 
+def text_looks_broken(text: str) -> bool:
+    """PDF에서 뽑은 글자가 깨졌는지 본다.
+
+    한국에서 이게 매우 흔하다. 한글(HWP)로 만든 PDF는 폰트를 서브셋으로 심으면서
+    글리프와 유니코드를 잇는 ToUnicode 표를 빠뜨리는 경우가 많다. 그러면 화면에는
+    멀쩡히 보여도 복사하거나 프로그램으로 뽑으면 엉뚱한 글자가 나온다.
+
+    이걸 '정상 추출'로 처리하면 깨진 글자를 분석하고 "문제 없음"을 돌려주게 된다.
+    그래서 뽑자마자 품질을 확인하고, 깨졌으면 차라리 OCR로 넘긴다.
+    """
+    import re
+
+    letters = re.findall(r"[가-힣a-zA-Z\u4e00-\u9fff]", text)
+    if len(letters) < 30:
+        return True
+
+    hangul = sum(1 for c in letters if "가" <= c <= "힣")
+    ratio = hangul / len(letters)
+
+    terms = ["근로", "임금", "계약", "근무", "시간", "지급", "회사", "퇴직", "휴가", "사용자"]
+    hits = sum(1 for t in terms if t in text)
+
+    # 한글 문서인데 한글 비율이 낮거나, 계약 용어가 하나도 안 보이면 깨진 것으로 본다
+    return ratio < 0.4 or hits < 2
+
+
 def pdf_diagnosis(file_obj) -> dict:
     """PDF를 읽고 무엇이 문제인지까지 판별한다.
 
     사용자에게 '실패했습니다'만 던지면 무엇을 해야 할지 알 수 없다.
-    스캔본인지, 암호가 걸렸는지, 그냥 빈 파일인지를 구분해서 알려준다.
+    스캔본인지, 암호가 걸렸는지, 글자가 깨졌는지를 구분해서 알려준다.
     """
+    import io
+
     import pdfplumber
 
+    from .pdftext import extract_best
+
     try:
-        with pdfplumber.open(file_obj) as pdf:
+        data = file_obj.read() if hasattr(file_obj, "read") else open(file_obj, "rb").read()
+        with pdfplumber.open(io.BytesIO(data)) as pdf:
             pages = len(pdf.pages)
-            text = "\n".join((p.extract_text() or "") for p in pdf.pages).strip()
             images = sum(len(p.images) for p in pdf.pages)
+        # 엔진 하나만 믿지 않는다. 여러 방식으로 뽑아 제일 나은 것을 고른다.
+        picked = extract_best(data)
+        text = picked["text"].strip()
+        engine, quality = picked["engine"], picked["score"]
     except Exception as e:
         msg = str(e).lower()
         if "password" in msg or "encrypt" in msg:
@@ -116,8 +150,17 @@ def pdf_diagnosis(file_obj) -> dict:
                 "message": f"PDF를 읽지 못했습니다. ({type(e).__name__})"}
 
     if len(text) >= 50:
+        if text_looks_broken(text):
+            # 글자는 들어 있지만 제대로 읽히지 않는다. 화면 렌더 후 OCR 하는 편이 낫다.
+            return {"ok": False, "text": "", "reason": "broken_text_layer", "pages": pages,
+                    "engine": engine, "quality": quality,
+                    "message": "PDF에 글자가 들어 있지만 제대로 읽히지 않습니다. "
+                               "한글(HWP)로 만든 PDF에서 자주 생기는 현상입니다. "
+                               "화면을 이미지로 바꿔 글자를 다시 읽겠습니다."}
+        note = "" if engine == "plumber" else f" (표 배치를 살려 읽었습니다 · {engine})"
         return {"ok": True, "text": text, "reason": "ok", "pages": pages,
-                "message": f"{pages}쪽에서 {len(text):,}자를 읽었습니다."}
+                "engine": engine, "quality": quality,
+                "message": f"{pages}쪽에서 {len(text):,}자를 읽었습니다.{note}"}
 
     if images > 0:
         return {"ok": False, "text": text, "reason": "scanned", "pages": pages,

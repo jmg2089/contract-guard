@@ -73,6 +73,12 @@
   .upload .fname { font-size: 0.82rem; color: #44403c; font-weight: 600; }
   .msg-ok { background: #e9f6ee; color: var(--green); padding: 9px 13px; border-radius: 8px; font-size: 0.84rem; margin-bottom: 12px; }
   .msg-no { background: var(--amber-bg); color: var(--amber); padding: 9px 13px; border-radius: 8px; font-size: 0.84rem; margin-bottom: 12px; }
+  .blocked { background: #fdecea; border: 1px solid #f3c2bd; border-radius: 12px; padding: 20px 22px; margin: 28px 0 8px; }
+  .blocked h3 { margin: 0 0 8px; font-size: 1.05rem; color: var(--red); }
+  .blocked p { margin: 0; font-size: 0.9rem; color: #57534e; line-height: 1.6; }
+  .blocked .why { font-size: 0.76rem; color: var(--muted); margin-top: 10px; }
+  .weak { background: var(--amber-bg); color: var(--amber); border-radius: 8px;
+          padding: 9px 13px; font-size: 0.83rem; margin-top: 10px; }
   .pdflinks { font-size: 0.78rem; color: var(--muted); margin-top: 8px; }
   .pdflinks a { color: #57534e; }
   .ocr { display: none; background: #f5f5f4; border: 1px solid var(--line); border-radius: 8px;
@@ -131,7 +137,11 @@
       <div class="bar"><i id="ocrbar"></i></div>
       <div class="note">글자 인식은 이 브라우저 안에서 처리됩니다. 파일이 서버로 전송되지 않습니다.</div>
     </div>
-    <textarea name="text" id="ta" placeholder="근로계약서 전문을 붙여넣으세요">{{ text }}</textarea>
+    {# autocomplete/spellcheck 를 끈다. 켜져 있으면 브라우저가 입력 내용을 자동완성
+       저장소에 넣거나 맞춤법 검사를 위해 외부로 보내는 경우가 있다. #}
+    <textarea name="text" id="ta" autocomplete="off" autocorrect="off"
+              spellcheck="false" placeholder="근로계약서 전문을 붙여넣으세요">{{ text }}</textarea>
+    <div id="maskNote" class="weak" style="display:none"></div>
     <div class="row">
       <button type="submit">검사하기</button>
       <label><input type="checkbox" name="use_llm"> LLM 판정 추가 (선택 &mdash; 끄면 룰 + 학습 모델만)</label>
@@ -139,7 +149,54 @@
     </div>
   </form>
 
-  {% if result %}
+  {% if result and not result.meta.input_check.ok %}
+    {% set ic = result.meta.input_check %}
+    <div class="blocked">
+      <h3>{{ ic.title }}</h3>
+      <p>{{ ic.message }}</p>
+      <p class="why">
+        판독 실패와 "문제 없음"은 다릅니다. 내용을 확인할 수 없을 때는 안전하다고 말하지 않습니다.
+        {% if ic.detail.hangul_ratio is defined %} · 한글 비율 {{ (ic.detail.hangul_ratio * 100)|round|int }}%{% endif %}
+        {% if ic.detail.terms is defined %} · 계약서 용어 {{ ic.detail.terms }}개{% endif %}
+      </p>
+    </div>
+  {% endif %}
+
+  {# 읽히기는 했는데 근로계약서가 아닌 경우.
+     여기서 위험도 점수를 띄우면 안 된다. 용역계약서에 "0점 · 안전"이 뜨면
+     근로기준법을 적용하지 않았다는 사실이 '문제 없음'으로 읽힌다. #}
+  {% if result and result.meta.input_check.ok and not result.meta.analyzable %}
+    {% set dt = result.meta.doctype %}
+    <div class="blocked">
+      <h3>
+        {% if dt.kind == 'contractor' %}근로계약서가 아닌 계약서로 보입니다
+        {% else %}근로계약서로 보이지 않습니다{% endif %}
+      </h3>
+      <p>
+        {% if dt.kind == 'contractor' %}
+          이 서비스는 근로기준법·최저임금법 등 <b>근로자에게 적용되는 법</b>과 대조합니다.
+          용역·위탁·프리랜서 계약은 근로기준법이 적용되지 않으므로, 같은 기준으로 검토하면
+          틀린 법을 들이대는 것이 됩니다. 그래서 위험도 점수를 내지 않습니다.
+        {% else %}
+          이 서비스는 근로계약서만 검토합니다. 다른 문서에는 대조할 법조문이 없습니다.
+        {% endif %}
+      </p>
+      <p class="why">
+        {% for why in dt.reasons %}{{ why }} {% endfor %}
+        · 판정 확신 {{ (dt.confidence * 100)|round|int }}%
+      </p>
+      {% if dt.disguise_warning %}
+        <div class="weak">
+          <b>확인이 필요합니다.</b> 계약서 이름은 용역·프리랜서지만, 출퇴근 시각 지정·지휘감독·
+          취업규칙 적용처럼 <b>사용자에게 종속된 정황</b>이 함께 보입니다. 법원은 계약서 이름이 아니라
+          실질로 근로자인지 판단합니다. 실질이 근로계약이라면 근로기준법의 보호를 받을 수 있으므로
+          노무사나 고용노동부 상담(1350)에 확인해 보시기 바랍니다.
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if result and result.meta.input_check.ok and result.meta.analyzable %}
     {% set m = result.meta %}
     {% set r = m.risk %}
     {% set rc = 'var(--red)' if r.score >= 61 else ('var(--amber)' if r.score >= 26 else 'var(--green)') %}
@@ -158,6 +215,8 @@
       <div class="stat gate"><div class="n">{{ m.blocked_by_gate }}</div><div class="k">인용 검증에서 차단</div></div>
     </div>
     <p class="src">룰 검사 {{ m.rule_findings }}건 · 학습 모델 {{ m.model_findings }}건 · LLM {{ m.llm_findings }}건</p>
+    {% if m.masked_message %}<div class="weak">{{ m.masked_message }}</div>{% endif %}
+    {% if m.input_check.weak %}<div class="weak">{{ m.input_check.message }}</div>{% endif %}
 
     {% if not result.findings %}
       <div class="ok-msg">법조문과 대조해 문제되는 조항을 찾지 못했습니다.</div>
@@ -189,7 +248,7 @@
     {% endif %}
   {% endif %}
 
-  {% if result and result.findings %}
+  {% if result and result.meta.input_check.ok and result.meta.analyzable and result.findings %}
     <form method="post" action="/download">
       <input type="hidden" name="text" value="{{ text }}">
       <button type="submit" class="dl">검토 의견서 내려받기 (.md)</button>
@@ -199,11 +258,30 @@
   <footer>
     이 도구는 법률 자문이 아닙니다. 참고용 검토 결과이며, 실제 분쟁이나 계약 체결 판단은
     노무사·변호사 또는 고용노동부 상담(☎1350)을 통해 확인하십시오.
+    <br>
+    올린 계약서는 저장하지 않으며, 주민등록번호·계좌번호 등은 보내기 전에 브라우저에서 가립니다.
+    <a href="/privacy">개인정보 처리방침</a>
   </footer>
 
 </div>
 <script src="/static/js/ocr.js"></script>
+<script src="/static/js/mask.js"></script>
 <script>
+/* 보내기 직전에 민감정보를 가린다.
+   서버도 같은 처리를 하지만, 여기서 먼저 가려야 주민등록번호가 네트워크를 타지 않는다.
+   가린 결과를 입력창에 그대로 되돌려 넣어 사용자가 무엇이 가려졌는지 눈으로 본다. */
+document.getElementById('form').addEventListener('submit', function () {
+  const ta = document.getElementById('ta');
+  if (!ta.value.trim()) return;
+  const r = Mask.apply(ta.value);
+  if (Object.keys(r.counts).length) {
+    ta.value = r.text;
+    const note = document.getElementById('maskNote');
+    note.textContent = Mask.summary(r.counts);
+    note.style.display = '';
+  }
+});
+
 const SAMPLES = {{ sample_texts|tojson }};
 function loadSample(id) {
   document.getElementById('ta').value = SAMPLES[id];
@@ -218,7 +296,7 @@ const fileInput = document.getElementById('fileinput');
 
 function show(t)      { box.classList.add('on'); msg.textContent = t; }
 function progress(p)  { bar.style.width = Math.round((p || 0) * 100) + '%'; }
-function hideLater()  { setTimeout(() => box.classList.remove('on'), 4000); }
+function hideLater()  { setTimeout(() => box.classList.remove('on'), 9000); }
 
 /* 파일을 고르면 무엇인지 판별해서 알맞은 경로로 보낸다.
    - 글자가 들어 있는 PDF  -> 서버가 바로 뽑는다 (빠르고 정확)
@@ -231,8 +309,10 @@ fileInput.addEventListener('change', async function () {
 
   try {
     if (f.type.startsWith('image/')) {
+      show('사진을 다듬는 중입니다...');
+      const canvas = await OCR.preprocess(f);
       show('사진에서 글자를 읽는 중입니다. 10~30초 걸릴 수 있습니다...');
-      const text = OCR.tidy(await OCR.imageToText(f, progress));
+      const text = OCR.tidy(await OCR.imageToText(canvas, progress));
       finish(text, '사진');
       return;
     }
@@ -248,8 +328,8 @@ fileInput.addEventListener('change', async function () {
         finish(data.text, 'PDF');
         return;
       }
-      if (data.reason === 'scanned' || data.reason === 'empty') {
-        show('스캔본입니다. 브라우저에서 글자를 읽습니다. 쪽당 10~30초 걸립니다...');
+      if (['scanned', 'empty', 'broken_text_layer'].includes(data.reason)) {
+        show((data.message || '') + ' 쪽당 10~30초 걸립니다...');
         const text = OCR.tidy(await OCR.scannedPdfToText(f, show, progress));
         finish(text, '스캔본');
         return;
@@ -276,7 +356,13 @@ function finish(text, kind) {
   }
   ta.value = text;
   /* 바로 분석하지 않는다. OCR은 틀릴 수 있으므로 사용자가 확인·수정한 뒤 직접 누르게 한다 */
-  show(`${kind}에서 ${text.length.toLocaleString()}자를 읽었습니다. 내용을 확인하고 [검사하기]를 눌러주세요.`);
+  const q = OCR.quality(text);
+  if (!q.good) {
+    show(`${kind}에서 글자를 읽었지만 정확도가 낮아 보입니다 (한글 비율 ${Math.round(q.ratio * 100)}%). `
+       + `아래 내용을 확인하고 틀린 부분을 고치거나, 계약서 내용을 직접 붙여넣어 주세요.`);
+  } else {
+    show(`${kind}에서 ${text.length.toLocaleString()}자를 읽었습니다. 내용을 확인하고 [검사하기]를 눌러주세요.`);
+  }
   ta.focus();
   ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
   fileInput.value = '';   // 서버로 중복 업로드되지 않도록 비운다

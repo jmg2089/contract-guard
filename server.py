@@ -34,6 +34,24 @@ except ImportError:
     pass
 
 
+@app.after_request
+def _no_store(resp):
+    """계약서가 실린 응답을 어디에도 캐시하지 않게 한다.
+
+    서버가 저장하지 않아도, 응답이 중간 프록시나 브라우저 디스크 캐시에 남으면
+    같은 컴퓨터를 쓰는 다른 사람이 뒤로가기로 계약서를 꺼내 볼 수 있다.
+    저장하지 않는다는 약속은 응답이 남지 않아야 완성된다.
+    """
+    if resp.content_type and "text/html" in resp.content_type:
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+        resp.headers["Pragma"] = "no-cache"
+    # 검색엔진이 결과 화면을 긁어가지 않도록 한다
+    resp.headers["X-Robots-Tag"] = "noindex, nofollow"
+    resp.headers["Referrer-Policy"] = "no-referrer"
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    return resp
+
+
 def build_payload(text: str, use_llm: bool) -> dict:
     """화면 렌더링과 JSON API가 같은 데이터를 쓴다. 형태가 갈라지면 버그가 생긴다."""
     from analyzer import analyze_contract
@@ -129,6 +147,12 @@ def api_revised():
 @app.get("/api/laws")
 def api_laws():
     return jsonify([a.to_dict() for a in get_index().articles])
+
+
+@app.get("/privacy")
+def privacy():
+    """개인정보 처리방침. 계약서를 다루는 서비스에 이 페이지가 없으면 안 된다."""
+    return render_template("privacy.html")
 
 
 @app.post("/api/analyze")
@@ -232,9 +256,17 @@ def index():
         ctx["text"] = text
         if text:
             ctx["result"] = build_payload(text, use_llm)
+            # 입력창에 되돌려 넣는 본문은 마스킹을 거친 쪽이어야 한다.
+            # 원본을 다시 뿌리면 응답 HTML 에 주민등록번호가 그대로 실린다.
+            ctx["text"] = ctx["result"].get("text", text)
     return render_template("index.html", **ctx)
 
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    # 기본은 127.0.0.1 이다. 0.0.0.0 + debug=True 조합은 같은 와이파이에 있는 누구나
+    # Werkzeug 디버거로 이 컴퓨터에서 코드를 실행할 수 있게 만든다. 계약서를 다루는
+    # 서버에서는 특히 위험하다. 팀원에게 보여줘야 할 때만 HOST=0.0.0.0 으로 켠다.
+    host = os.getenv("HOST", "127.0.0.1")
+    debug = os.getenv("FLASK_DEBUG", "1") == "1" and host == "127.0.0.1"
+    app.run(host=host, port=port, debug=debug)

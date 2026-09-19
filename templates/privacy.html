@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>개인정보 처리방침 — 근로계약서 독소조항 검사</title>
+<style>
+  :root {
+    --bg: #fafaf9; --fg: #1c1917; --muted: #78716c; --line: #e7e5e4; --card: #ffffff;
+    --red: #b3261e; --red-bg: #fdecea; --amber: #8a6100; --amber-bg: #fff6e0; --green: #1f6f43;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif;
+    line-height: 1.65;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 16px 80px; }
+  h1 { font-size: 1.6rem; margin: 0 0 8px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 0.92rem; margin: 0 0 28px; }
+  textarea {
+    width: 100%; min-height: 220px; padding: 14px; border: 1px solid var(--line);
+    border-radius: 10px; font-family: inherit; font-size: 0.93rem; line-height: 1.6;
+    resize: vertical; background: var(--card); color: var(--fg);
+  }
+  textarea:focus { outline: 2px solid #44403c; outline-offset: -1px; }
+  .row { display: flex; align-items: center; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+  button {
+    background: #1c1917; color: #fff; border: 0; padding: 10px 22px;
+    border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+  }
+  button:hover { background: #44403c; }
+  label { font-size: 0.88rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 32px 0 8px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .stat .n { font-size: 1.7rem; font-weight: 700; letter-spacing: -0.02em; }
+  .stat .k { font-size: 0.78rem; color: var(--muted); }
+  .stat.gate { border-color: #a8a29e; background: #f5f5f4; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin-top: 16px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.76rem; font-weight: 700; }
+  .violation { background: var(--red-bg); color: var(--red); }
+  .unfavorable { background: var(--amber-bg); color: var(--amber); }
+  .src { color: var(--muted); font-size: 0.76rem; }
+  .clause { color: #57534e; font-size: 0.9rem; border-left: 3px solid var(--line); padding: 4px 12px; margin: 12px 0; }
+  .quote { font-size: 0.89rem; color: #44403c; border-left: 3px solid currentColor; padding: 6px 12px; margin: 8px 0; }
+  .k { font-weight: 700; font-size: 0.86rem; }
+  code { background: #f5f5f4; padding: 1px 6px; border-radius: 4px; font-size: 0.83rem; }
+  details { margin-top: 24px; font-size: 0.88rem; color: var(--muted); }
+  .warn { background: var(--amber-bg); color: var(--amber); padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 20px; }
+  .samples { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .samples button {
+    background: #fff; color: #44403c; border: 1px solid var(--line); padding: 8px 14px;
+    border-radius: 999px; font-size: 0.83rem; font-weight: 500; cursor: pointer;
+  }
+  .samples button:hover { background: #f5f5f4; border-color: #a8a29e; }
+  .samples .lab { font-size: 0.8rem; color: var(--muted); align-self: center; margin-right: 4px; }
+  .risk { display: flex; align-items: center; gap: 18px; background: var(--card);
+          border: 1px solid var(--line); border-radius: 12px; padding: 18px 22px; margin: 28px 0 4px; }
+  .risk .num { font-size: 2.6rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+  .risk .grade { font-size: 1rem; font-weight: 700; }
+  .risk .msg { font-size: 0.88rem; color: #57534e; margin-top: 4px; }
+  .risk .formula { font-size: 0.74rem; color: var(--muted); margin-top: 6px; }
+  .dl { display: inline-block; margin-top: 18px; font-size: 0.86rem; color: #44403c;
+        border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 9px 16px;
+        text-decoration: none; cursor: pointer; }
+  .dl:hover { background: #f5f5f4; }
+  .upload { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+            border: 1px dashed var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+  .upload label.pick { background: #fff; border: 1px solid var(--line); border-radius: 8px;
+                       padding: 7px 14px; font-size: 0.84rem; cursor: pointer; color: #44403c; }
+  .upload label.pick:hover { background: #f5f5f4; }
+  .upload .hint { font-size: 0.78rem; color: var(--muted); }
+  .upload .fname { font-size: 0.82rem; color: #44403c; font-weight: 600; }
+  .msg-ok { background: #e9f6ee; color: var(--green); padding: 9px 13px; border-radius: 8px; font-size: 0.84rem; margin-bottom: 12px; }
+  .msg-no { background: var(--amber-bg); color: var(--amber); padding: 9px 13px; border-radius: 8px; font-size: 0.84rem; margin-bottom: 12px; }
+  .blocked { background: #fdecea; border: 1px solid #f3c2bd; border-radius: 12px; padding: 20px 22px; margin: 28px 0 8px; }
+  .blocked h3 { margin: 0 0 8px; font-size: 1.05rem; color: var(--red); }
+  .blocked p { margin: 0; font-size: 0.9rem; color: #57534e; line-height: 1.6; }
+  .blocked .why { font-size: 0.76rem; color: var(--muted); margin-top: 10px; }
+  .weak { background: var(--amber-bg); color: var(--amber); border-radius: 8px;
+          padding: 9px 13px; font-size: 0.83rem; margin-top: 10px; }
+  .pdflinks { font-size: 0.78rem; color: var(--muted); margin-top: 8px; }
+  .pdflinks a { color: #57534e; }
+  .ocr { display: none; background: #f5f5f4; border: 1px solid var(--line); border-radius: 8px;
+         padding: 10px 14px; font-size: 0.84rem; color: #44403c; margin-bottom: 12px; }
+  .ocr.on { display: block; }
+  .ocr .bar { height: 4px; background: var(--line); border-radius: 999px; margin-top: 8px; overflow: hidden; }
+  .ocr .bar i { display: block; height: 100%; width: 0%; background: #44403c; transition: width .2s; }
+  .ocr .note { color: var(--muted); font-size: 0.76rem; margin-top: 6px; }
+  .ok-msg { background: #e9f6ee; color: var(--green); padding: 14px 16px; border-radius: 10px; margin-top: 24px; }
+  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.82rem; }
+</style>
+<style>
+  table.policy { border-collapse: collapse; width: 100%; margin: 12px 0 24px; }
+  table.policy th, table.policy td {
+    border: 1px solid var(--line); padding: 10px 12px; text-align: left;
+    font-size: 0.94rem; vertical-align: top;
+  }
+  table.policy th { background: #f5f5f4; width: 130px; font-weight: 600; white-space: nowrap; }
+  h2 { font-size: 1.1rem; margin: 30px 0 8px; }
+  .back { display: inline-block; margin-bottom: 20px; color: var(--muted); font-size: 0.92rem; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <a class="back" href="/">&larr; 검사 화면으로</a>
+  <h1>개인정보 처리방침</h1>
+  <p class="src">최종 수정일 2026년 9월 19일</p>
+
+  <h2>한 줄 요약</h2>
+  <p>
+    올려주신 계약서를 <b>저장하지 않습니다.</b> 검사에 필요 없는 주민등록번호·계좌번호·전화번호·이메일은
+    <b>브라우저에서 미리 가려서</b> 서버로 보내지도 않습니다. 사진과 PDF는 서버에 올라가지 않고
+    브라우저 안에서 글자만 읽습니다.
+  </p>
+
+  <h2>1. 계약서 검사</h2>
+  <table class="policy">
+    <tr><th>처리 항목</th><td>입력하신 계약서 본문 (민감정보는 아래 3항에 따라 가려진 상태)</td></tr>
+    <tr><th>처리 목적</th><td>근로기준법 등 법령 조문과 대조해 위반 소지를 찾기 위함</td></tr>
+    <tr><th>보관 기간</th><td><b>보관하지 않습니다.</b> 응답을 만든 뒤 메모리에서 사라집니다.
+        데이터베이스도 파일 저장도 로그 기록도 없습니다.</td></tr>
+    <tr><th>제3자 제공</th><td><b>없습니다.</b> 판정은 서버 안에서 끝납니다. 외부 AI API를 호출하지 않습니다.</td></tr>
+  </table>
+
+  <h2>2. 사진·PDF 업로드</h2>
+  <p>
+    글자가 이미지로 들어 있는 파일은 <b>브라우저 안에서</b> 글자를 읽습니다(OCR).
+    파일 자체는 서버로 전송되지 않습니다. 읽어낸 글자는 입력창에 채워지고, 확인·수정하신 뒤
+    직접 [검사하기]를 누르셔야 검사가 시작됩니다.
+  </p>
+
+  <h2>3. 민감정보 자동 가리기</h2>
+  <p>
+    검사에 쓰이지 않는 정보는 <b>보내기 전에 브라우저에서 가립니다.</b>
+    위약금 조항이 위법인지 따지는 데 주민등록번호는 필요하지 않습니다.
+    필요 없는 정보를 받지 않는 것이 가장 확실한 보호라고 보기 때문입니다.
+  </p>
+  <ul>
+    <li>주민등록번호 · 외국인등록번호</li>
+    <li>계좌번호 · 카드번호</li>
+    <li>휴대전화번호</li>
+    <li>이메일 주소</li>
+  </ul>
+  <p>
+    가린 결과는 입력창에 그대로 되돌려 보여 드리고, 몇 건을 가렸는지 화면에 표시합니다.
+    자동 인식이 100%일 수는 없으므로, <b>주민등록번호가 적힌 부분은 직접 지우고 올리시는 편이 가장 안전합니다.</b>
+  </p>
+
+  <h2>4. 문의하기</h2>
+  <table class="policy">
+    <tr><th>처리 항목</th><td>답변 받으실 이메일 주소, 문의 내용</td></tr>
+    <tr><th>처리 목적</th><td>문의에 답변드리기 위함</td></tr>
+    <tr><th>보관 기간</th><td>답변 완료 후 삭제. 이메일로 전달되는 구조라 받는 사람의 메일함에 남습니다.</td></tr>
+  </table>
+  <p class="why">
+    문의창에는 <b>계약서 원문을 붙여넣지 말아 주세요.</b> 문의 내용은 이메일로 전달되므로
+    저희가 회수하거나 삭제할 수 없는 곳(메일 서버, 받는 사람의 메일함)에 남습니다.
+    계약서 검토가 필요하시면 위 검사 기능을 이용해 주세요. 그쪽은 아무것도 남지 않습니다.
+  </p>
+
+  <h2>5. 쿠키 · 접속 기록</h2>
+  <p>광고·분석용 쿠키를 심지 않습니다. 이용자 식별을 위한 세션도 만들지 않습니다.</p>
+
+  <h2>6. 이 서비스의 한계</h2>
+  <p>
+    이 서비스는 법령 조문과 대조해 확인이 필요한 지점을 알려 드리는 도구이며,
+    법률 자문이 아닙니다. 실제 판단이 필요하시면 공인노무사나 변호사,
+    고용노동부 고객상담센터(국번없이 1350)에 상담하시기 바랍니다.
+  </p>
+</div>
+
+</body>
+</html>
