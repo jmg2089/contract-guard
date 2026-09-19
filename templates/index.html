@@ -47,6 +47,23 @@
   code { background: #f5f5f4; padding: 1px 6px; border-radius: 4px; font-size: 0.83rem; }
   details { margin-top: 24px; font-size: 0.88rem; color: var(--muted); }
   .warn { background: var(--amber-bg); color: var(--amber); padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 20px; }
+  .samples { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .samples button {
+    background: #fff; color: #44403c; border: 1px solid var(--line); padding: 8px 14px;
+    border-radius: 999px; font-size: 0.83rem; font-weight: 500; cursor: pointer;
+  }
+  .samples button:hover { background: #f5f5f4; border-color: #a8a29e; }
+  .samples .lab { font-size: 0.8rem; color: var(--muted); align-self: center; margin-right: 4px; }
+  .risk { display: flex; align-items: center; gap: 18px; background: var(--card);
+          border: 1px solid var(--line); border-radius: 12px; padding: 18px 22px; margin: 28px 0 4px; }
+  .risk .num { font-size: 2.6rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+  .risk .grade { font-size: 1rem; font-weight: 700; }
+  .risk .msg { font-size: 0.88rem; color: #57534e; margin-top: 4px; }
+  .risk .formula { font-size: 0.74rem; color: var(--muted); margin-top: 6px; }
+  .dl { display: inline-block; margin-top: 18px; font-size: 0.86rem; color: #44403c;
+        border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 9px 16px;
+        text-decoration: none; cursor: pointer; }
+  .dl:hover { background: #f5f5f4; }
   .ok-msg { background: #e9f6ee; color: var(--green); padding: 14px 16px; border-radius: 10px; margin-top: 24px; }
   footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.82rem; }
 </style>
@@ -67,8 +84,15 @@
   </div>
   {% endif %}
 
-  <form method="post">
-    <textarea name="text" placeholder="근로계약서 전문을 붙여넣으세요">{{ text }}</textarea>
+  <div class="samples">
+    <span class="lab">계약서가 없으신가요?</span>
+    {% for s in samples %}
+      <button type="button" onclick="loadSample('{{ s.id }}')" title="{{ s.desc }}">{{ s.name }}</button>
+    {% endfor %}
+  </div>
+
+  <form method="post" id="form">
+    <textarea name="text" id="ta" placeholder="근로계약서 전문을 붙여넣으세요">{{ text }}</textarea>
     <div class="row">
       <button type="submit">검사하기</button>
       <label><input type="checkbox" name="use_llm"> LLM 판정 추가 (선택 &mdash; 끄면 룰 + 학습 모델만)</label>
@@ -78,6 +102,16 @@
 
   {% if result %}
     {% set m = result.meta %}
+    {% set r = m.risk %}
+    {% set rc = 'var(--red)' if r.score >= 61 else ('var(--amber)' if r.score >= 26 else 'var(--green)') %}
+    <div class="risk">
+      <div class="num" style="color:{{ rc }}">{{ r.score }}<span style="font-size:1rem;font-weight:600">점</span></div>
+      <div>
+        <div class="grade" style="color:{{ rc }}">{{ r.grade }}</div>
+        <div class="msg">{{ r.message }}</div>
+        <div class="formula">{{ r.formula }}</div>
+      </div>
+    </div>
     <div class="stats">
       <div class="stat"><div class="n">{{ m.clause_count }}</div><div class="k">검토한 조항</div></div>
       <div class="stat"><div class="n" style="color:var(--red)">{{ m.violation_count }}</div><div class="k">위반 소지</div></div>
@@ -116,11 +150,25 @@
     {% endif %}
   {% endif %}
 
+  {% if result and result.findings %}
+    <form method="post" action="/download">
+      <input type="hidden" name="text" value="{{ text }}">
+      <button type="submit" class="dl">검토 의견서 내려받기 (.md)</button>
+    </form>
+  {% endif %}
+
   <footer>
     이 도구는 법률 자문이 아닙니다. 참고용 검토 결과이며, 실제 분쟁이나 계약 체결 판단은
     노무사·변호사 또는 고용노동부 상담(☎1350)을 통해 확인하십시오.
   </footer>
 
 </div>
+<script>
+const SAMPLES = {{ sample_texts|tojson }};
+function loadSample(id) {
+  document.getElementById('ta').value = SAMPLES[id];
+  document.getElementById('ta').focus();
+}
+</script>
 </body>
 </html>

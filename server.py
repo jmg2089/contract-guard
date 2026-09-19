@@ -17,9 +17,10 @@
 """
 import os
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, Response, jsonify, render_template, request
 
 from core.pipeline import analyze
+from core import classify as clf
 from core.retrieve import get_index
 from config import MIN_WAGE_HOURLY, MIN_WAGE_YEAR, SEVERITY_LABEL
 
@@ -35,6 +36,12 @@ except ImportError:
 
 def build_payload(text: str, use_llm: bool) -> dict:
     """화면 렌더링과 JSON API가 같은 데이터를 쓴다. 형태가 갈라지면 버그가 생긴다."""
+    from analyzer import analyze_contract
+
+    return analyze_contract(text, use_llm=use_llm) or {}
+
+
+def _unused_build_payload(text: str, use_llm: bool) -> dict:
     report = analyze(text, use_llm=use_llm)
     index = get_index()
     clause_by_id = {c.id: c for c in report.clauses}
@@ -66,12 +73,56 @@ def build_payload(text: str, use_llm: bool) -> dict:
 
 @app.get("/health")
 def health():
+    """배포 후 상태 확인용. 분류기가 실제로 로드됐는지가 핵심 지표다.
+
+    classifier.loaded 가 false 면 빌드 때 학습이 실패한 것이다.
+    그 경우에도 서비스는 살아 있지만 룰 검사 15개만으로 동작한다(재현율 86.7%).
+    """
     idx = get_index()
+    model = clf.load()
     return jsonify(
         ok=True,
         law_articles=len(idx.articles),
         unverified=len(idx.unverified),
         min_wage={"year": MIN_WAGE_YEAR, "hourly": MIN_WAGE_HOURLY},
+        rules=len(__import__("core.rules", fromlist=["RULES"]).RULES),
+        classifier={
+            "loaded": model is not None,
+            "classes": (len(model.classes_) if model is not None else 0),
+        },
+    )
+
+
+@app.get("/api/samples")
+def api_samples():
+    """샘플 계약서 목록. 방문자가 붙여넣을 계약서가 없을 때 쓴다."""
+    from data.samples import listing
+
+    return jsonify(listing())
+
+
+@app.get("/api/samples/<sample_id>")
+def api_sample(sample_id):
+    from data.samples import get
+
+    s = get(sample_id)
+    if s is None:
+        return jsonify(error="없는 샘플입니다"), 404
+    return jsonify(s)
+
+
+@app.post("/api/revised")
+def api_revised():
+    """검토 의견서를 마크다운 파일로 내려준다."""
+    body = request.get_json(silent=True) or {}
+    text = (body.get("text") or "").strip()
+    if not text:
+        return jsonify(error="text 가 비어 있습니다"), 400
+    payload = build_payload(text, False)
+    return Response(
+        payload["revised_markdown"],
+        mimetype="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="contract-review.md"'},
     )
 
 
@@ -90,6 +141,32 @@ def api_analyze():
     return jsonify(build_payload(text, use_llm))
 
 
+def _samples_listing():
+    from data.samples import listing
+
+    return listing()
+
+
+def _sample_texts():
+    from data.samples import SAMPLES
+
+    return {s["id"]: s["text"] for s in SAMPLES}
+
+
+@app.post("/download")
+def download_review():
+    """검토 의견서를 마크다운 파일로 내려준다. 사용자가 실제로 들고 갈 결과물."""
+    text = (request.form.get("text") or "").strip()
+    if not text:
+        return jsonify(error="text 가 비어 있습니다"), 400
+    md = build_payload(text, False).get("revised_markdown", "")
+    return Response(
+        md,
+        mimetype="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="contract-review.md"'},
+    )
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     idx = get_index()
@@ -100,6 +177,8 @@ def index():
         "unverified": len(idx.unverified),
         "text": "",
         "result": None,
+        "samples": _samples_listing(),
+        "sample_texts": _sample_texts(),
     }
     if request.method == "POST":
         text = (request.form.get("text") or "").strip()

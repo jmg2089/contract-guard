@@ -136,7 +136,8 @@ def r_leave_timing(c: Clause):
 def r_probation(c: Clause):
     m = re.search(r"수습[^.\n]{0,20}?" + NUM + r"\s*개월", c.text)
     if m and _num(m.group(1)) > PROBATION_MAX_MONTHS:
-        return _finding(c, "unfavorable", "최저임금법-제6조", 0,
+        # 근거는 최저임금법 제5조 제2항 — 수습 감액이 허용되는 범위를 3개월로 정한 조문이다.
+        return _finding(c, "unfavorable", "최저임금법-제5조", 2,
                         f"수습기간을 {_num(m.group(1))}개월로 정하고 있습니다. 최저임금 감액이 허용되는 범위는 {PROBATION_MAX_MONTHS}개월 이내이므로 그 이후 감액 지급은 최저임금 위반이 됩니다.",
                         f"수습기간을 {PROBATION_MAX_MONTHS}개월 이내로 줄이거나, 이후 기간은 감액 없이 전액 지급으로 명시하십시오.")
 
@@ -224,10 +225,131 @@ def r_break_time(c: Clause):
                         "4시간 근로 시 30분 이상, 8시간 근로 시 1시간 이상의 휴게시간을 명시하십시오.")
 
 
+
+# --- 추가 룰 (조문 확장분을 실제로 사용하는 규칙) ---------------------------------
+
+def r_dismissal_written(c: Clause):
+    """해고 서면통지 의무 배제. 서면통지 없는 해고는 효력 자체가 없다."""
+    if re.search(r"해고[^.\n]{0,40}?(?:구두|유선|전화|문자)(?:로만|로|만)?\s*(?:통보|통지|고지)"
+                 r"|해고[^.\n]{0,30}?서면[^.\n]{0,20}?(?:하지\s*아니|않는다|생략|없이)", c.text):
+        return _finding(c, "violation", "근로기준법-제27조", 0,
+                        "해고 사유와 시기를 서면으로 통지하지 않겠다는 취지의 조항입니다. 서면통지 없는 해고는 효력이 없습니다.",
+                        "해고 시 사유와 시기를 서면으로 통지한다고 명시하십시오.")
+
+
+def r_pay_cut_limit(c: Clause):
+    """감급 제재 한도 초과. 1회 평균임금 1일분의 1/2, 총액 임금총액의 1/10 이내."""
+    m = re.search(r"(?:감봉|감급)[^.\n]{0,30}?" + NUM + r"\s*(?:퍼센트|%)", c.text)
+    if m and _num(m.group(1)) > 10:
+        return _finding(c, "violation", "근로기준법-제95조", 0,
+                        f"감급 제재를 임금의 {_num(m.group(1))}퍼센트로 정하고 있습니다. 감급 총액은 1임금지급기 임금 총액의 10분의 1을 넘을 수 없습니다.",
+                        "감급 한도를 임금 총액의 10분의 1 이내로 수정하십시오.")
+    if re.search(r"(?:감봉|감급)[^.\n]{0,30}?(?:제한\s*없|한도\s*없|회사가\s*정하는)", c.text):
+        return _finding(c, "violation", "근로기준법-제95조", 0,
+                        "감급 제재의 한도를 두지 않은 조항입니다. 법정 한도를 넘는 감급은 무효입니다.",
+                        "1회 평균임금 1일분의 2분의 1, 총액은 임금 총액의 10분의 1 이내로 명시하십시오.")
+
+
+def r_fixed_term(c: Clause):
+    """기간제 2년 초과 사용. 2년을 넘기면 무기계약으로 전환된 것으로 본다.
+
+    주의: "2026년 10월 1일부터" 같은 날짜의 연도를 계약 연수로 오인하면 안 된다.
+    계약기간은 현실적으로 한 자리 숫자이므로 1~9년만 받는다.
+    """
+    if re.search(r"기간의?\s*정함이?\s*없", c.text):
+        return None
+    m = re.search(r"(?:계약|근로)\s*기간[^.\n]{0,25}?(?<![0-9])([1-9])\s*년(?!\s*\d)", c.text)
+    if m and _num(m.group(1)) > 2:
+        return _finding(c, "unfavorable", "기간제법-제4조", 0,
+                        f"기간제 계약기간을 {_num(m.group(1))}년으로 정하고 있습니다. 총 2년을 초과해 사용하면 기간의 정함이 없는 근로계약으로 전환된 것으로 봅니다.",
+                        "계약기간을 2년 이내로 하거나, 2년 초과 시 무기계약 전환을 명시하십시오.")
+    if re.search(r"(?:갱신|연장)[^.\n]{0,30}?(?:2년\s*초과|무기계약[^.\n]{0,15}?(?:아니|않)|전환되지)", c.text):
+        return _finding(c, "violation", "기간제법-제4조", 1,
+                        "반복 갱신으로 2년을 넘겨도 무기계약으로 전환되지 않는다는 취지의 조항입니다. 법정 전환 효과는 약정으로 배제할 수 없습니다.",
+                        "해당 조항을 삭제하십시오.")
+
+
+def r_retaliation(c: Clause):
+    """노동청 진정·신고를 이유로 한 불이익. 보복 조치는 별도 금지 규정이 있다."""
+    if re.search(r"(?:노동청|노동위원회|고용노동부|근로감독관|진정|신고|고발)[^.\n]{0,40}?"
+                 r"(?:해고|징계|불이익|계약\s*해지|퇴사)", c.text):
+        return _finding(c, "violation", "근로기준법-제104조", 1,
+                        "법 위반 사실을 감독기관에 신고한 것을 이유로 불이익을 주는 조항입니다. 보복 조치는 금지되어 있습니다.",
+                        "해당 조항을 삭제하십시오.")
+
+
+def r_parental_leave(c: Clause):
+    """육아휴직 거부 또는 불이익."""
+    if re.search(r"육아휴직[^.\n]{0,40}?(?:허용하지|불가|제외|거부|인정하지|해고|불이익)"
+                 r"|육아휴직[^.\n]{0,30}?(?:복직|복귀)[^.\n]{0,20}?(?:보장하지|아니)", c.text):
+        return _finding(c, "violation", "남녀고용평등법-제19조", 2,
+                        "육아휴직을 허용하지 않거나 이를 이유로 불이익을 주는 조항입니다.",
+                        "육아휴직을 법령에 따라 허용하고, 복귀 시 같은 업무 또는 같은 수준의 임금 직무로 복직시킨다고 명시하십시오.")
+
+
+def r_rules_change(c: Clause):
+    """취업규칙을 근로자 동의 없이 불리하게 변경."""
+    if re.search(r"취업규칙[^.\n]{0,40}?(?:동의\s*없이|일방적|회사가\s*단독|의견\s*청취[^.\n]{0,10}?(?:없|생략))", c.text):
+        return _finding(c, "violation", "근로기준법-제94조", 0,
+                        "취업규칙을 근로자 동의 없이 변경할 수 있게 한 조항입니다. 불리한 변경에는 근로자 과반수의 동의가 필요합니다.",
+                        "불리한 변경 시 근로자 과반수의 동의를 받는다고 명시하십시오.")
+
+
+def r_discrimination(c: Clause):
+    """국적·신앙·사회적 신분에 따른 차별."""
+    if re.search(r"(?:국적|출신|신앙|종교|혼인\s*여부|학벌|출신지)[^.\n]{0,30}?"
+                 r"(?:따라|이유로)[^.\n]{0,25}?(?:차등|차별|달리|제한)", c.text):
+        return _finding(c, "violation", "근로기준법-제6조", 0,
+                        "국적·신앙 또는 사회적 신분을 이유로 근로조건을 달리 정하는 조항입니다.",
+                        "해당 차별 기준을 삭제하고 직무 기준으로 대체하십시오.")
+
+
+
+def r_harassment(c: Clause):
+    """직장 내 괴롭힘을 용인하거나 신고를 막는 조항."""
+    if re.search(r"(?:괴롭힘|폭언|따돌림|갑질)[^.\n]{0,40}?(?:문제\s*삼지|이의|책임지지|해당하지)"
+                 r"|(?:괴롭힘|고충)[^.\n]{0,30}?(?:신고|제기)[^.\n]{0,25}?(?:금지|할\s*수\s*없|불이익)", c.text):
+        return _finding(c, "violation", "근로기준법-제76조의2", 0,
+                        "직장 내 괴롭힘을 문제 삼지 못하게 하거나 신고를 막는 조항입니다. 괴롭힘 금지는 법으로 정해져 있어 약정으로 배제할 수 없습니다.",
+                        "해당 조항을 삭제하고, 괴롭힘 발생 시 조사·조치 절차를 명시하십시오.")
+
+
+def r_maternity_leave(c: Clause):
+    """출산전후휴가 미부여 또는 축소."""
+    if re.search(r"출산(?:전후)?\s*휴가[^.\n]{0,35}?(?:부여하지|없|무급|제외|허용하지)"
+                 r"|출산[^.\n]{0,20}?휴가[^.\n]{0,20}?" + NUM + r"\s*일", c.text):
+        m = re.search(r"출산[^.\n]{0,20}?휴가[^.\n]{0,20}?" + NUM + r"\s*일", c.text)
+        if m and _num(m.group(1)) >= 90:
+            return None
+        return _finding(c, "violation", "근로기준법-제74조", 0,
+                        "출산전후휴가를 주지 않거나 법정 기준(90일)보다 짧게 정한 조항입니다.",
+                        "출산 전후를 통하여 90일 이상의 출산전후휴가를 부여한다고 명시하십시오.")
+
+
+def r_spouse_leave(c: Clause):
+    """배우자 출산휴가 미부여 또는 불이익."""
+    if re.search(r"배우자[^.\n]{0,20}?출산[^.\n]{0,25}?(?:휴가[^.\n]{0,15}?(?:없|부여하지|무급)|불이익|해고)", c.text):
+        return _finding(c, "violation", "남녀고용평등법-제18조의2", 0,
+                        "배우자 출산전후휴가를 주지 않거나 이를 이유로 불이익을 주는 조항입니다. 법정 휴가는 20일 유급입니다.",
+                        "배우자 출산전후휴가 20일을 유급으로 부여한다고 명시하십시오.")
+
+
+def r_job_interference(c: Clause):
+    """재취업 방해 목적의 명단 작성·통보."""
+    if re.search(r"(?:재취업|이직|취업)[^.\n]{0,30}?(?:방해|명단|블랙리스트|통보하여)"
+                 r"|(?:퇴사자|퇴직자)[^.\n]{0,25}?명단[^.\n]{0,25}?(?:공유|통보|제공)", c.text):
+        return _finding(c, "violation", "근로기준법-제40조", 0,
+                        "퇴직자의 재취업을 방해할 목적으로 명단을 작성하거나 통보하는 조항입니다.",
+                        "해당 조항을 전면 삭제하십시오.")
+
+
 RULES = [
     r_penalty, r_min_wage, r_min_wage_monthly, r_forced_labor, r_leave_timing, r_probation, r_annual_leave, r_working_hours,
     r_unpaid_overtime, r_dismissal_notice, r_settlement, r_severance_waiver,
     r_marriage_pregnancy, r_wage_offset, r_break_time,
+    r_dismissal_written, r_pay_cut_limit, r_fixed_term, r_retaliation,
+    r_parental_leave, r_rules_change, r_discrimination,
+    r_harassment, r_maternity_leave, r_spouse_leave, r_job_interference,
 ]
 
 

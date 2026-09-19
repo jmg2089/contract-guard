@@ -69,7 +69,9 @@ def classify(clause: Clause) -> Finding | None:
         return None
 
     text = clause.text.strip()
-    if len(text) < 10:
+    # 문맥이 없는 짧은 조항("연차 | 근로기준법에 따름")은 단어 하나만 보고 오판한다.
+    # 룰은 숫자를 보므로 짧아도 정확하지만, 분류기는 문장 전체를 봐야 한다.
+    if len(text) < 25:
         return None
 
     proba = model.predict_proba([text])[0]
