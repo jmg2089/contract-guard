@@ -155,6 +155,12 @@ def privacy():
     return render_template("privacy.html")
 
 
+@app.get("/terms")
+def terms():
+    """이용약관. 법률 자문이 아니라는 점과 책임 범위를 분명히 해 두는 자리다."""
+    return render_template("terms.html")
+
+
 @app.post("/api/analyze")
 def api_analyze():
     body = request.get_json(silent=True) or {}
@@ -213,6 +219,44 @@ def api_extract():
                     "계약서 내용을 복사해서 붙여넣어 주세요.",
         ), 400
     return jsonify(pdf_diagnosis(io.BytesIO(f.read())))
+
+
+@app.post("/api/analyze-pdf")
+def api_analyze_pdf():
+    """PDF를 받아 글자를 뽑고 바로 판정까지 한다. 프론트가 한 번에 쓰는 경로.
+
+    /api/extract 는 글자만 뽑아 입력창에 채우는 용도이고, 이쪽은 업로드에서
+    결과까지 한 번에 간다. 화면 흐름이 둘로 갈리지 않도록 응답 형태는
+    /api/analyze 와 같게 맞춘다.
+    """
+    import io
+
+    from core.segment import pdf_diagnosis
+
+    f = request.files.get("file")
+    if f is None or not f.filename:
+        return jsonify(error="no_file", message="파일이 없습니다."), 400
+    if not f.filename.lower().endswith(".pdf"):
+        return jsonify(error="not_pdf",
+                       message="PDF 파일만 읽을 수 있습니다."), 400
+
+    diag = pdf_diagnosis(io.BytesIO(f.read()))
+    if not diag["ok"]:
+        # 스캔본은 브라우저에서 글자를 읽어야 한다. 프론트가 분기할 수 있게 이유를 준다.
+        return jsonify(error=diag["reason"], reason=diag["reason"],
+                       message=diag["message"]), 400
+
+    payload = build_payload(diag["text"], False)
+    payload["filename"] = f.filename
+    return jsonify(payload)
+
+
+@app.post("/api/contact")
+def api_contact():
+    """문의 메일. 강수현 님이 만든 폼이 이 주소로 보낸다."""
+    from core.contact import send_contact_email
+
+    return send_contact_email()
 
 
 @app.post("/api/mask-preview")

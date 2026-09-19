@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>근로계약서 독소조항 검사</title>
+<style>
+  :root {
+    --bg: #fafaf9; --fg: #1c1917; --muted: #78716c; --line: #e7e5e4; --card: #ffffff;
+    --red: #b3261e; --red-bg: #fdecea; --amber: #8a6100; --amber-bg: #fff6e0; --green: #1f6f43;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif;
+    line-height: 1.65;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 16px 80px; }
+  h1 { font-size: 1.6rem; margin: 0 0 8px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 0.92rem; margin: 0 0 28px; }
+  textarea {
+    width: 100%; min-height: 220px; padding: 14px; border: 1px solid var(--line);
+    border-radius: 10px; font-family: inherit; font-size: 0.93rem; line-height: 1.6;
+    resize: vertical; background: var(--card); color: var(--fg);
+  }
+  textarea:focus { outline: 2px solid #44403c; outline-offset: -1px; }
+  .row { display: flex; align-items: center; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+  button {
+    background: #1c1917; color: #fff; border: 0; padding: 10px 22px;
+    border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+  }
+  button:hover { background: #44403c; }
+  label { font-size: 0.88rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 32px 0 8px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .stat .n { font-size: 1.7rem; font-weight: 700; letter-spacing: -0.02em; }
+  .stat .k { font-size: 0.78rem; color: var(--muted); }
+  .stat.gate { border-color: #a8a29e; background: #f5f5f4; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin-top: 16px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.76rem; font-weight: 700; }
+  .violation { background: var(--red-bg); color: var(--red); }
+  .unfavorable { background: var(--amber-bg); color: var(--amber); }
+  .src { color: var(--muted); font-size: 0.76rem; }
+  .clause { color: #57534e; font-size: 0.9rem; border-left: 3px solid var(--line); padding: 4px 12px; margin: 12px 0; }
+  .quote { font-size: 0.89rem; color: #44403c; border-left: 3px solid currentColor; padding: 6px 12px; margin: 8px 0; }
+  .k { font-weight: 700; font-size: 0.86rem; }
+  code { background: #f5f5f4; padding: 1px 6px; border-radius: 4px; font-size: 0.83rem; }
+  details { margin-top: 24px; font-size: 0.88rem; color: var(--muted); }
+  .warn { background: var(--amber-bg); color: var(--amber); padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 20px; }
+  .samples { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .samples button {
+    background: #fff; color: #44403c; border: 1px solid var(--line); padding: 8px 14px;
+    border-radius: 999px; font-size: 0.83rem; font-weight: 500; cursor: pointer;
+  }
+  .samples button:hover { background: #f5f5f4; border-color: #a8a29e; }
+  .samples .lab { font-size: 0.8rem; color: var(--muted); align-self: center; margin-right: 4px; }
+  .risk { display: flex; align-items: center; gap: 18px; background: var(--card);
+          border: 1px solid var(--line); border-radius: 12px; padding: 18px 22px; margin: 28px 0 4px; }
+  .risk .num { font-size: 2.6rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+  .risk .grade { font-size: 1rem; font-weight: 700; }
+  .risk .msg { font-size: 0.88rem; color: #57534e; margin-top: 4px; }
+  .risk .formula { font-size: 0.74rem; color: var(--muted); margin-top: 6px; }
+  .dl { display: inline-block; margin-top: 18px; font-size: 0.86rem; color: #44403c;
+        border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 9px 16px;
+        text-decoration: none; cursor: pointer; }
+  .dl:hover { background: #f5f5f4; }
+  .upload { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+            border: 1px dashed var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+  .upload label.pick { background: #fff; border: 1px solid var(--line); border-radius: 8px;
+                       padding: 7px 14px; font-size: 0.84rem; cursor: pointer; color: #44403c; }
+  .upload label.pick:hover { background: #f5f5f4; }
+  .upload .hint { font-size: 0.78rem; color: var(--muted); }
+  .upload .fname { font-size: 0.82rem; color: #44403c; font-weight: 600; }
+  .msg-ok { background: #e9f6ee; color: var(--green); padding: 9px 13px; border-radius: 8px; font-size: 0.84rem; margin-bottom: 12px; }
+  .msg-no { background: var(--amber-bg); color: var(--amber); padding: 9px 13px; border-radius: 8px; font-size: 0.84rem; margin-bottom: 12px; }
+  .blocked { background: #fdecea; border: 1px solid #f3c2bd; border-radius: 12px; padding: 20px 22px; margin: 28px 0 8px; }
+  .blocked h3 { margin: 0 0 8px; font-size: 1.05rem; color: var(--red); }
+  .blocked p { margin: 0; font-size: 0.9rem; color: #57534e; line-height: 1.6; }
+  .blocked .why { font-size: 0.76rem; color: var(--muted); margin-top: 10px; }
+  .weak { background: var(--amber-bg); color: var(--amber); border-radius: 8px;
+          padding: 9px 13px; font-size: 0.83rem; margin-top: 10px; }
+  .pdflinks { font-size: 0.78rem; color: var(--muted); margin-top: 8px; }
+  .pdflinks a { color: #57534e; }
+  .ocr { display: none; background: #f5f5f4; border: 1px solid var(--line); border-radius: 8px;
+         padding: 10px 14px; font-size: 0.84rem; color: #44403c; margin-bottom: 12px; }
+  .ocr.on { display: block; }
+  .ocr .bar { height: 4px; background: var(--line); border-radius: 999px; margin-top: 8px; overflow: hidden; }
+  .ocr .bar i { display: block; height: 100%; width: 0%; background: #44403c; transition: width .2s; }
+  .ocr .note { color: var(--muted); font-size: 0.76rem; margin-top: 6px; }
+  .ok-msg { background: #e9f6ee; color: var(--green); padding: 14px 16px; border-radius: 10px; margin-top: 24px; }
+  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.82rem; }
+  .maskprev { border: 1px solid var(--line); background: var(--card); border-radius: 10px;
+              padding: 14px 16px; margin-top: 12px; }
+  .maskprev .k { margin-bottom: 10px; }
+  .previewbody { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+  .previewpage { margin: 0; flex: 0 0 auto; }
+  .previewpage img { display: block; max-height: 420px; width: auto;
+                     border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  .previewpage figcaption { font-size: 0.74rem; color: var(--muted); text-align: center; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>근로계약서 독소조항 검사기</h1>
+  <p class="sub">
+    계약서 조항을 근로기준법 조문과 대조해 위반·불리 조항을 찾습니다.
+    <strong>법 문장을 생성하지 않습니다</strong> &mdash; 근거는 언제나 법령 원문에서 그대로 인용되며,
+    원문과 일치하지 않는 판정은 결과에 오르지 못합니다.
+  </p>
+
+  {% if unverified %}
+  <div class="warn">
+    공식 원문으로 검증되지 않은 조문이 {{ unverified }}개 있습니다. 제출 전 법제처 원문으로 교체해야 합니다.
+  </div>
+  {% endif %}
+
+  <div class="samples">
+    <span class="lab">계약서가 없으신가요?</span>
+    {% for s in samples %}
+      <button type="button" onclick="loadSample('{{ s.id }}')" title="{{ s.desc }}">{{ s.name }}</button>
+    {% endfor %}
+  </div>
+  <div class="pdflinks">
+    같은 계약서를 PDF로 내려받아 업로드해 보실 수도 있습니다 —
+    {% for s in samples %}<a href="/static/samples/{{ s.id }}.pdf" download>{{ s.name }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
+  </div>
+
+  {% if upload_message %}
+    <div class="{{ 'msg-ok' if upload_ok else 'msg-no' }}">{{ upload_message }}</div>
+  {% endif %}
+
+  <form method="post" id="form" enctype="multipart/form-data">
+    <div class="upload">
+      <label class="pick">
+        파일 선택
+        <input type="file" id="fileinput" name="file" accept="application/pdf,image/*" style="display:none">
+      </label>
+      <span class="fname" id="fname"></span>
+      <span class="hint">PDF · 스캔본 · 사진 · 캡처 화면 모두 가능합니다.</span>
+    </div>
+
+    <div class="ocr" id="ocrbox">
+      <div id="ocrmsg">준비 중입니다...</div>
+      <div class="bar"><i id="ocrbar"></i></div>
+      <div class="note">글자 인식은 이 브라우저 안에서 처리됩니다. 파일이 서버로 전송되지 않습니다.</div>
+    </div>
+    {# autocomplete/spellcheck 를 끈다. 켜져 있으면 브라우저가 입력 내용을 자동완성
+       저장소에 넣거나 맞춤법 검사를 위해 외부로 보내는 경우가 있다. #}
+    <textarea name="text" id="ta" autocomplete="off" autocorrect="off"
+              spellcheck="false" placeholder="근로계약서 전문을 붙여넣으세요">{{ text }}</textarea>
+    <div id="maskNote" class="weak" style="display:none"></div>
+
+    {# 업로드한 PDF에서 민감정보가 실제로 어디가 가려졌는지 눈으로 확인하는 영역 #}
+    <div id="maskPreview" class="maskprev" style="display:none">
+      <div class="k">민감정보 마스킹 미리보기</div>
+      <div id="maskPreviewBody" class="previewbody"></div>
+      <div id="maskPreviewNote" class="src"></div>
+    </div>
+    <div class="row">
+      <button type="submit">검사하기</button>
+      <label><input type="checkbox" name="use_llm"> LLM 판정 추가 (선택 &mdash; 끄면 룰 + 학습 모델만)</label>
+      <span class="src">법조문 {{ law_count }}개 · {{ min_wage_year }}년 최저임금 시급 {{ "{:,}".format(min_wage) }}원 기준</span>
+    </div>
+  </form>
+
+  {% if result and not result.meta.input_check.ok %}
+    {% set ic = result.meta.input_check %}
+    <div class="blocked">
+      <h3>{{ ic.title }}</h3>
+      <p>{{ ic.message }}</p>
+      <p class="why">
+        판독 실패와 "문제 없음"은 다릅니다. 내용을 확인할 수 없을 때는 안전하다고 말하지 않습니다.
+        {% if ic.detail.hangul_ratio is defined %} · 한글 비율 {{ (ic.detail.hangul_ratio * 100)|round|int }}%{% endif %}
+        {% if ic.detail.terms is defined %} · 계약서 용어 {{ ic.detail.terms }}개{% endif %}
+      </p>
+    </div>
+  {% endif %}
+
+  {# 읽히기는 했는데 근로계약서가 아닌 경우.
+     여기서 위험도 점수를 띄우면 안 된다. 용역계약서에 "0점 · 안전"이 뜨면
+     근로기준법을 적용하지 않았다는 사실이 '문제 없음'으로 읽힌다. #}
+  {% if result and result.meta.input_check.ok and not result.meta.analyzable %}
+    {% set dt = result.meta.doctype %}
+    <div class="blocked">
+      <h3>
+        {% if dt.kind == 'contractor' %}근로계약서가 아닌 계약서로 보입니다
+        {% else %}근로계약서로 보이지 않습니다{% endif %}
+      </h3>
+      <p>
+        {% if dt.kind == 'contractor' %}
+          이 서비스는 근로기준법·최저임금법 등 <b>근로자에게 적용되는 법</b>과 대조합니다.
+          용역·위탁·프리랜서 계약은 근로기준법이 적용되지 않으므로, 같은 기준으로 검토하면
+          틀린 법을 들이대는 것이 됩니다. 그래서 위험도 점수를 내지 않습니다.
+        {% else %}
+          이 서비스는 근로계약서만 검토합니다. 다른 문서에는 대조할 법조문이 없습니다.
+        {% endif %}
+      </p>
+      <p class="why">
+        {% for why in dt.reasons %}{{ why }} {% endfor %}
+        · 판정 확신 {{ (dt.confidence * 100)|round|int }}%
+      </p>
+      {% if dt.disguise_warning %}
+        <div class="weak">
+          <b>확인이 필요합니다.</b> 계약서 이름은 용역·프리랜서지만, 출퇴근 시각 지정·지휘감독·
+          취업규칙 적용처럼 <b>사용자에게 종속된 정황</b>이 함께 보입니다. 법원은 계약서 이름이 아니라
+          실질로 근로자인지 판단합니다. 실질이 근로계약이라면 근로기준법의 보호를 받을 수 있으므로
+          노무사나 고용노동부 상담(1350)에 확인해 보시기 바랍니다.
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if result and result.meta.input_check.ok and result.meta.analyzable %}
+    {% set m = result.meta %}
+    {% set r = m.risk %}
+    {% set rc = 'var(--red)' if r.score >= 61 else ('var(--amber)' if r.score >= 26 else 'var(--green)') %}
+    <div class="risk">
+      <div class="num" style="color:{{ rc }}">{{ r.score }}<span style="font-size:1rem;font-weight:600">점</span></div>
+      <div>
+        <div class="grade" style="color:{{ rc }}">{{ r.grade }}</div>
+        <div class="msg">{{ r.message }}</div>
+        <div class="formula">{{ r.formula }}</div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="n">{{ m.clause_count }}</div><div class="k">검토한 조항</div></div>
+      <div class="stat"><div class="n" style="color:var(--red)">{{ m.violation_count }}</div><div class="k">위반 소지</div></div>
+      <div class="stat"><div class="n" style="color:var(--amber)">{{ m.unfavorable_count }}</div><div class="k">불리 조항</div></div>
+      <div class="stat gate"><div class="n">{{ m.blocked_by_gate }}</div><div class="k">인용 검증에서 차단</div></div>
+    </div>
+    <p class="src">룰 검사 {{ m.rule_findings }}건 · 학습 모델 {{ m.model_findings }}건 · LLM {{ m.llm_findings }}건</p>
+    {% if m.masked_message %}<div class="weak">{{ m.masked_message }}</div>{% endif %}
+    {% if m.input_check.weak %}<div class="weak">{{ m.input_check.message }}</div>{% endif %}
+
+    {% if not result.findings %}
+      <div class="ok-msg">법조문과 대조해 문제되는 조항을 찾지 못했습니다.</div>
+    {% endif %}
+
+    {% for f in result.findings %}
+    <div class="card">
+      <span class="badge {{ f.severity }}">{{ f.severity_label }}</span>
+      <strong style="margin-left:6px">{{ f.clause_title }}</strong>
+      <span class="src">· {{ {'rule':'룰 검사','model':'학습 모델','llm':'LLM 판정'}[f.source] }}</span>
+      <div class="clause">{{ f.clause_text[:400] }}{% if f.clause_text|length > 400 %}…{% endif %}</div>
+      <div><span class="k">왜 문제인가</span> — {{ f.reason }}</div>
+      <div style="margin-top:8px"><span class="k">근거</span> — <code>{{ f.law_label }}</code></div>
+      <div class="quote" style="color:{{ 'var(--red)' if f.severity == 'violation' else 'var(--amber)' }}">{{ f.quote }}</div>
+      {% if f.suggestion %}<div><span class="k">대체 문구 제안</span> — {{ f.suggestion }}</div>{% endif %}
+    </div>
+    {% endfor %}
+
+    {% if result.dropped %}
+    <details>
+      <summary>인용 검증에서 차단된 판정 {{ result.dropped|length }}건 보기</summary>
+      <p>모델이 내놓았지만 근거 조문이 검색 결과에 없거나 인용문이 원문과 일치하지 않아 사용자에게 표시하지 않은 판정입니다.</p>
+      <ul>
+      {% for d in result.dropped %}
+        <li><code>{{ d.clause_id }}</code> → 주장한 근거 <code>{{ d.claimed_law_id or '(없음)' }}</code> · 인용 &ldquo;{{ d.claimed_quote[:60] or '(없음)' }}&rdquo;</li>
+      {% endfor %}
+      </ul>
+    </details>
+    {% endif %}
+  {% endif %}
+
+  {% if result and result.meta.input_check.ok and result.meta.analyzable and result.findings %}
+    <form method="post" action="/download">
+      <input type="hidden" name="text" value="{{ text }}">
+      <button type="submit" class="dl">검토 의견서 내려받기 (.md)</button>
+    </form>
+  {% endif %}
+
+  <footer>
+    이 도구는 법률 자문이 아닙니다. 참고용 검토 결과이며, 실제 분쟁이나 계약 체결 판단은
+    노무사·변호사 또는 고용노동부 상담(☎1350)을 통해 확인하십시오.
+    <br>
+    올린 계약서는 저장하지 않으며, 주민등록번호·계좌번호 등은 보내기 전에 브라우저에서 가립니다.
+    <a href="/privacy">개인정보 처리방침</a>
+  </footer>
+
+</div>
+<script src="/static/js/ocr.js"></script>
+<script src="/static/js/mask.js"></script>
+<script>
+/* 보내기 직전에 민감정보를 가린다.
+   서버도 같은 처리를 하지만, 여기서 먼저 가려야 주민등록번호가 네트워크를 타지 않는다.
+   가린 결과를 입력창에 그대로 되돌려 넣어 사용자가 무엇이 가려졌는지 눈으로 본다. */
+document.getElementById('form').addEventListener('submit', function () {
+  const ta = document.getElementById('ta');
+  if (!ta.value.trim()) return;
+  const r = Mask.apply(ta.value);
+  if (Object.keys(r.counts).length) {
+    ta.value = r.text;
+    const note = document.getElementById('maskNote');
+    note.textContent = Mask.summary(r.counts);
+    note.style.display = '';
+  }
+});
+
+const SAMPLES = {{ sample_texts|tojson }};
+function loadSample(id) {
+  document.getElementById('ta').value = SAMPLES[id];
+  document.getElementById('ta').focus();
+}
+
+const box = document.getElementById('ocrbox');
+const msg = document.getElementById('ocrmsg');
+const bar = document.getElementById('ocrbar');
+const ta  = document.getElementById('ta');
+const fileInput = document.getElementById('fileinput');
+
+function show(t)      { box.classList.add('on'); msg.textContent = t; }
+function progress(p)  { bar.style.width = Math.round((p || 0) * 100) + '%'; }
+function hideLater()  { setTimeout(() => box.classList.remove('on'), 9000); }
+
+/* 파일을 고르면 무엇인지 판별해서 알맞은 경로로 보낸다.
+   - 글자가 들어 있는 PDF  -> 서버가 바로 뽑는다 (빠르고 정확)
+   - 스캔 PDF / 이미지      -> 브라우저에서 OCR (느리지만 되긴 된다) */
+fileInput.addEventListener('change', async function () {
+  const f = this.files[0];
+  if (!f) return;
+  document.getElementById('fname').textContent = f.name;
+  progress(0);
+
+  try {
+    if (f.type.startsWith('image/')) {
+      show('사진을 다듬는 중입니다...');
+      const canvas = await OCR.preprocess(f);
+      show('사진에서 글자를 읽는 중입니다. 10~30초 걸릴 수 있습니다...');
+      const text = OCR.tidy(await OCR.imageToText(canvas, progress));
+      finish(text, '사진');
+      return;
+    }
+
+    if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) {
+      show('PDF를 읽는 중입니다...');
+      const fd = new FormData();
+      fd.append('file', f);
+      const res = await fetch('/api/extract', { method: 'POST', body: fd });
+      const data = await res.json();
+
+      if (data.ok) {                       // 글자가 들어 있는 PDF
+        finish(data.text, 'PDF');
+        // 텍스트를 채운 뒤, 문서 모양 그대로 가려진 그림을 보여준다.
+        // 가렸다는 문장만으로는 확인할 수 없기 때문이다. 실패해도 검사에는 지장이 없다.
+        maskPreview(f);
+        return;
+      }
+      if (['scanned', 'empty', 'broken_text_layer'].includes(data.reason)) {
+        show((data.message || '') + ' 쪽당 10~30초 걸립니다...');
+        const text = OCR.tidy(await OCR.scannedPdfToText(f, show, progress));
+        finish(text, '스캔본');
+        return;
+      }
+      show(data.message || 'PDF를 읽지 못했습니다.');
+      hideLater();
+      return;
+    }
+
+    show('지원하지 않는 형식입니다. PDF 또는 이미지 파일을 올려주세요.');
+    hideLater();
+  } catch (e) {
+    show('글자를 읽는 중 문제가 생겼습니다. 계약서 내용을 직접 붙여넣어 주세요.');
+    hideLater();
+  }
+});
+
+/* 마스킹 미리보기.
+   서버가 PDF 페이지를 그림으로 그린 뒤 민감정보 자리에 검은 박스를 덮어 돌려준다.
+   파일은 서버에 저장되지 않고, 응답을 만든 뒤 메모리에서 사라진다. */
+async function maskPreview(file) {
+  const box = document.getElementById('maskPreview');
+  const body = document.getElementById('maskPreviewBody');
+  const note = document.getElementById('maskPreviewNote');
+  try {
+    body.innerHTML = '<p class="src">미리보기를 만드는 중입니다...</p>';
+    box.style.display = '';
+
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch('/api/mask-preview', { method: 'POST', body: fd });
+    const data = await res.json();
+
+    if (!data.ok || !data.pages || !data.pages.length) {
+      box.style.display = 'none';
+      return;
+    }
+
+    body.innerHTML = '';
+    data.pages.forEach((p) => {
+      const fig = document.createElement('figure');
+      fig.className = 'previewpage';
+      const img = document.createElement('img');
+      img.src = p.image;
+      img.alt = `${p.page}쪽 마스킹 미리보기`;
+      const cap = document.createElement('figcaption');
+      cap.textContent = `${p.page}쪽`;
+      fig.appendChild(img);
+      fig.appendChild(cap);
+      body.appendChild(fig);
+    });
+
+    const kinds = Object.entries(data.counts || {});
+    const total = kinds.reduce((s, [, v]) => s + v, 0);
+    let msg = total
+      ? `민감정보 ${total}건을 가렸습니다 (${kinds.map(([k, v]) => `${k} ${v}건`).join(', ')}). `
+      : '가릴 민감정보를 찾지 못했습니다. ';
+    msg += '자동 인식은 100%가 아닙니다. 검은 박스가 빠진 개인정보가 없는지 확인한 뒤 검사해 주세요.';
+    if (data.truncated) msg += ` (${data.total_pages}쪽 중 앞 ${data.pages.length}쪽만 표시)`;
+    note.textContent = msg;
+  } catch (e) {
+    box.style.display = 'none';   // 미리보기는 부가 기능이다. 실패해도 검사를 막지 않는다
+  }
+}
+
+function finish(text, kind) {
+  progress(1);
+  if (!text || text.trim().length < 20) {
+    show(`${kind}에서 글자를 거의 찾지 못했습니다. 직접 붙여넣어 주세요.`);
+    hideLater();
+    return;
+  }
+  ta.value = text;
+  /* 바로 분석하지 않는다. OCR은 틀릴 수 있으므로 사용자가 확인·수정한 뒤 직접 누르게 한다 */
+  const q = OCR.quality(text);
+  if (!q.good) {
+    show(`${kind}에서 글자를 읽었지만 정확도가 낮아 보입니다 (한글 비율 ${Math.round(q.ratio * 100)}%). `
+       + `아래 내용을 확인하고 틀린 부분을 고치거나, 계약서 내용을 직접 붙여넣어 주세요.`);
+  } else {
+    show(`${kind}에서 ${text.length.toLocaleString()}자를 읽었습니다. 내용을 확인하고 [검사하기]를 눌러주세요.`);
+  }
+  ta.focus();
+  ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  fileInput.value = '';   // 서버로 중복 업로드되지 않도록 비운다
+  document.getElementById('fname').textContent = '';
+  hideLater();
+}
+</script>
+</body>
+</html>

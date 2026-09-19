@@ -1,440 +1,2053 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>근로계약서 독소조항 검사</title>
-<style>
-  :root {
-    --bg: #fafaf9; --fg: #1c1917; --muted: #78716c; --line: #e7e5e4; --card: #ffffff;
-    --red: #b3261e; --red-bg: #fdecea; --amber: #8a6100; --amber-bg: #fff6e0; --green: #1f6f43;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--fg);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif;
-    line-height: 1.65;
-  }
-  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 16px 80px; }
-  h1 { font-size: 1.6rem; margin: 0 0 8px; letter-spacing: -0.02em; }
-  .sub { color: var(--muted); font-size: 0.92rem; margin: 0 0 28px; }
-  textarea {
-    width: 100%; min-height: 220px; padding: 14px; border: 1px solid var(--line);
-    border-radius: 10px; font-family: inherit; font-size: 0.93rem; line-height: 1.6;
-    resize: vertical; background: var(--card); color: var(--fg);
-  }
-  textarea:focus { outline: 2px solid #44403c; outline-offset: -1px; }
-  .row { display: flex; align-items: center; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
-  button {
-    background: #1c1917; color: #fff; border: 0; padding: 10px 22px;
-    border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer;
-  }
-  button:hover { background: #44403c; }
-  label { font-size: 0.88rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 32px 0 8px; }
-  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
-  .stat .n { font-size: 1.7rem; font-weight: 700; letter-spacing: -0.02em; }
-  .stat .k { font-size: 0.78rem; color: var(--muted); }
-  .stat.gate { border-color: #a8a29e; background: #f5f5f4; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin-top: 16px; }
-  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.76rem; font-weight: 700; }
-  .violation { background: var(--red-bg); color: var(--red); }
-  .unfavorable { background: var(--amber-bg); color: var(--amber); }
-  .src { color: var(--muted); font-size: 0.76rem; }
-  .clause { color: #57534e; font-size: 0.9rem; border-left: 3px solid var(--line); padding: 4px 12px; margin: 12px 0; }
-  .quote { font-size: 0.89rem; color: #44403c; border-left: 3px solid currentColor; padding: 6px 12px; margin: 8px 0; }
-  .k { font-weight: 700; font-size: 0.86rem; }
-  code { background: #f5f5f4; padding: 1px 6px; border-radius: 4px; font-size: 0.83rem; }
-  details { margin-top: 24px; font-size: 0.88rem; color: var(--muted); }
-  .warn { background: var(--amber-bg); color: var(--amber); padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 20px; }
-  .samples { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-  .samples button {
-    background: #fff; color: #44403c; border: 1px solid var(--line); padding: 8px 14px;
-    border-radius: 999px; font-size: 0.83rem; font-weight: 500; cursor: pointer;
-  }
-  .samples button:hover { background: #f5f5f4; border-color: #a8a29e; }
-  .samples .lab { font-size: 0.8rem; color: var(--muted); align-self: center; margin-right: 4px; }
-  .risk { display: flex; align-items: center; gap: 18px; background: var(--card);
-          border: 1px solid var(--line); border-radius: 12px; padding: 18px 22px; margin: 28px 0 4px; }
-  .risk .num { font-size: 2.6rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
-  .risk .grade { font-size: 1rem; font-weight: 700; }
-  .risk .msg { font-size: 0.88rem; color: #57534e; margin-top: 4px; }
-  .risk .formula { font-size: 0.74rem; color: var(--muted); margin-top: 6px; }
-  .dl { display: inline-block; margin-top: 18px; font-size: 0.86rem; color: #44403c;
-        border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 9px 16px;
-        text-decoration: none; cursor: pointer; }
-  .dl:hover { background: #f5f5f4; }
-  .upload { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-            border: 1px dashed var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
-  .upload label.pick { background: #fff; border: 1px solid var(--line); border-radius: 8px;
-                       padding: 7px 14px; font-size: 0.84rem; cursor: pointer; color: #44403c; }
-  .upload label.pick:hover { background: #f5f5f4; }
-  .upload .hint { font-size: 0.78rem; color: var(--muted); }
-  .upload .fname { font-size: 0.82rem; color: #44403c; font-weight: 600; }
-  .msg-ok { background: #e9f6ee; color: var(--green); padding: 9px 13px; border-radius: 8px; font-size: 0.84rem; margin-bottom: 12px; }
-  .msg-no { background: var(--amber-bg); color: var(--amber); padding: 9px 13px; border-radius: 8px; font-size: 0.84rem; margin-bottom: 12px; }
-  .blocked { background: #fdecea; border: 1px solid #f3c2bd; border-radius: 12px; padding: 20px 22px; margin: 28px 0 8px; }
-  .blocked h3 { margin: 0 0 8px; font-size: 1.05rem; color: var(--red); }
-  .blocked p { margin: 0; font-size: 0.9rem; color: #57534e; line-height: 1.6; }
-  .blocked .why { font-size: 0.76rem; color: var(--muted); margin-top: 10px; }
-  .weak { background: var(--amber-bg); color: var(--amber); border-radius: 8px;
-          padding: 9px 13px; font-size: 0.83rem; margin-top: 10px; }
-  .pdflinks { font-size: 0.78rem; color: var(--muted); margin-top: 8px; }
-  .pdflinks a { color: #57534e; }
-  .ocr { display: none; background: #f5f5f4; border: 1px solid var(--line); border-radius: 8px;
-         padding: 10px 14px; font-size: 0.84rem; color: #44403c; margin-bottom: 12px; }
-  .ocr.on { display: block; }
-  .ocr .bar { height: 4px; background: var(--line); border-radius: 999px; margin-top: 8px; overflow: hidden; }
-  .ocr .bar i { display: block; height: 100%; width: 0%; background: #44403c; transition: width .2s; }
-  .ocr .note { color: var(--muted); font-size: 0.76rem; margin-top: 6px; }
-  .ok-msg { background: #e9f6ee; color: var(--green); padding: 14px 16px; border-radius: 10px; margin-top: 24px; }
-  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.82rem; }
-  .maskprev { border: 1px solid var(--line); background: var(--card); border-radius: 10px;
-              padding: 14px 16px; margin-top: 12px; }
-  .maskprev .k { margin-bottom: 10px; }
-  .previewbody { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
-  .previewpage { margin: 0; flex: 0 0 auto; }
-  .previewpage img { display: block; max-height: 420px; width: auto;
-                     border: 1px solid var(--line); border-radius: 6px; background: #fff; }
-  .previewpage figcaption { font-size: 0.74rem; color: var(--muted); text-align: center; margin-top: 4px; }
-</style>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+    <meta
+        name="description"
+        content="근로계약서의 확인이 필요한 조항과 관련 법령을 점검합니다."
+    >
+
+    <title>근로계약서 점검</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
 </head>
+
 <body>
-<div class="wrap">
+    <header class="site-header">
+        <div class="header-inner">
+            <button type="button" class="brand">
+                <img
+                    src="{{ url_for('static', filename='images/image.png') }}"
+                    alt="로고"
+                    class="brand-mark"
+                >
+            </button>
 
-  <h1>근로계약서 독소조항 검사기</h1>
-  <p class="sub">
-    계약서 조항을 근로기준법 조문과 대조해 위반·불리 조항을 찾습니다.
-    <strong>법 문장을 생성하지 않습니다</strong> &mdash; 근거는 언제나 법령 원문에서 그대로 인용되며,
-    원문과 일치하지 않는 판정은 결과에 오르지 못합니다.
-  </p>
-
-  {% if unverified %}
-  <div class="warn">
-    공식 원문으로 검증되지 않은 조문이 {{ unverified }}개 있습니다. 제출 전 법제처 원문으로 교체해야 합니다.
-  </div>
-  {% endif %}
-
-  <div class="samples">
-    <span class="lab">계약서가 없으신가요?</span>
-    {% for s in samples %}
-      <button type="button" onclick="loadSample('{{ s.id }}')" title="{{ s.desc }}">{{ s.name }}</button>
-    {% endfor %}
-  </div>
-  <div class="pdflinks">
-    같은 계약서를 PDF로 내려받아 업로드해 보실 수도 있습니다 —
-    {% for s in samples %}<a href="/static/samples/{{ s.id }}.pdf" download>{{ s.name }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
-  </div>
-
-  {% if upload_message %}
-    <div class="{{ 'msg-ok' if upload_ok else 'msg-no' }}">{{ upload_message }}</div>
-  {% endif %}
-
-  <form method="post" id="form" enctype="multipart/form-data">
-    <div class="upload">
-      <label class="pick">
-        파일 선택
-        <input type="file" id="fileinput" name="file" accept="application/pdf,image/*" style="display:none">
-      </label>
-      <span class="fname" id="fname"></span>
-      <span class="hint">PDF · 스캔본 · 사진 · 캡처 화면 모두 가능합니다.</span>
-    </div>
-
-    <div class="ocr" id="ocrbox">
-      <div id="ocrmsg">준비 중입니다...</div>
-      <div class="bar"><i id="ocrbar"></i></div>
-      <div class="note">글자 인식은 이 브라우저 안에서 처리됩니다. 파일이 서버로 전송되지 않습니다.</div>
-    </div>
-    {# autocomplete/spellcheck 를 끈다. 켜져 있으면 브라우저가 입력 내용을 자동완성
-       저장소에 넣거나 맞춤법 검사를 위해 외부로 보내는 경우가 있다. #}
-    <textarea name="text" id="ta" autocomplete="off" autocorrect="off"
-              spellcheck="false" placeholder="근로계약서 전문을 붙여넣으세요">{{ text }}</textarea>
-    <div id="maskNote" class="weak" style="display:none"></div>
-
-    {# 업로드한 PDF에서 민감정보가 실제로 어디가 가려졌는지 눈으로 확인하는 영역 #}
-    <div id="maskPreview" class="maskprev" style="display:none">
-      <div class="k">민감정보 마스킹 미리보기</div>
-      <div id="maskPreviewBody" class="previewbody"></div>
-      <div id="maskPreviewNote" class="src"></div>
-    </div>
-    <div class="row">
-      <button type="submit">검사하기</button>
-      <label><input type="checkbox" name="use_llm"> LLM 판정 추가 (선택 &mdash; 끄면 룰 + 학습 모델만)</label>
-      <span class="src">법조문 {{ law_count }}개 · {{ min_wage_year }}년 최저임금 시급 {{ "{:,}".format(min_wage) }}원 기준</span>
-    </div>
-  </form>
-
-  {% if result and not result.meta.input_check.ok %}
-    {% set ic = result.meta.input_check %}
-    <div class="blocked">
-      <h3>{{ ic.title }}</h3>
-      <p>{{ ic.message }}</p>
-      <p class="why">
-        판독 실패와 "문제 없음"은 다릅니다. 내용을 확인할 수 없을 때는 안전하다고 말하지 않습니다.
-        {% if ic.detail.hangul_ratio is defined %} · 한글 비율 {{ (ic.detail.hangul_ratio * 100)|round|int }}%{% endif %}
-        {% if ic.detail.terms is defined %} · 계약서 용어 {{ ic.detail.terms }}개{% endif %}
-      </p>
-    </div>
-  {% endif %}
-
-  {# 읽히기는 했는데 근로계약서가 아닌 경우.
-     여기서 위험도 점수를 띄우면 안 된다. 용역계약서에 "0점 · 안전"이 뜨면
-     근로기준법을 적용하지 않았다는 사실이 '문제 없음'으로 읽힌다. #}
-  {% if result and result.meta.input_check.ok and not result.meta.analyzable %}
-    {% set dt = result.meta.doctype %}
-    <div class="blocked">
-      <h3>
-        {% if dt.kind == 'contractor' %}근로계약서가 아닌 계약서로 보입니다
-        {% else %}근로계약서로 보이지 않습니다{% endif %}
-      </h3>
-      <p>
-        {% if dt.kind == 'contractor' %}
-          이 서비스는 근로기준법·최저임금법 등 <b>근로자에게 적용되는 법</b>과 대조합니다.
-          용역·위탁·프리랜서 계약은 근로기준법이 적용되지 않으므로, 같은 기준으로 검토하면
-          틀린 법을 들이대는 것이 됩니다. 그래서 위험도 점수를 내지 않습니다.
-        {% else %}
-          이 서비스는 근로계약서만 검토합니다. 다른 문서에는 대조할 법조문이 없습니다.
-        {% endif %}
-      </p>
-      <p class="why">
-        {% for why in dt.reasons %}{{ why }} {% endfor %}
-        · 판정 확신 {{ (dt.confidence * 100)|round|int }}%
-      </p>
-      {% if dt.disguise_warning %}
-        <div class="weak">
-          <b>확인이 필요합니다.</b> 계약서 이름은 용역·프리랜서지만, 출퇴근 시각 지정·지휘감독·
-          취업규칙 적용처럼 <b>사용자에게 종속된 정황</b>이 함께 보입니다. 법원은 계약서 이름이 아니라
-          실질로 근로자인지 판단합니다. 실질이 근로계약이라면 근로기준법의 보호를 받을 수 있으므로
-          노무사나 고용노동부 상담(1350)에 확인해 보시기 바랍니다.
         </div>
-      {% endif %}
+    </header>
+
+    <main>
+        <section id="homePage" class="page active">
+            <section class="hero">
+                <div class="hero-inner">
+                    <div class="hero-copy">
+                        <p class="eyebrow">근로계약서 사전 점검 서비스</p>
+
+                        <h1>
+                            서명하기 전 <br>
+                            놓친 조건은 없는지<br>
+                            확인해 보세요.
+                        </h1>
+
+                        <p class="hero-description">
+                            근로계약서에서 확인이 필요한 내용을 찾고
+                            관련 법령의 실제 문구와 함께 보여드립니다.
+                        </p>
+
+                        <div class="hero-actions">
+                            <button
+                                type="button"
+                                class="button button-primary button-large"
+                                data-page-link="upload"
+                            >
+                                계약서 확인하기
+                                <span aria-hidden="true">→</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                class="button button-secondary button-large"
+                                data-scroll-target="process"
+                            >
+                                점검 방식 보기
+                            </button>
+                        </div>
+
+                        <ul class="hero-notes">
+                            <li>회원가입 없이 이용</li>
+                            <li>PDF 또는 직접 입력</li>
+                            <li>법령 원문 대조</li>
+                        </ul>
+                    </div>
+
+                    <div class="document-preview" aria-label="계약서 분석 예시">
+                        <div class="preview-toolbar">
+                            <div>
+                                <span class="preview-dot"></span>
+                                <span class="preview-dot"></span>
+                                <span class="preview-dot"></span>
+                            </div>
+
+                            <span>근로계약서.pdf</span>
+                        </div>
+
+                        <div class="preview-paper">
+                            <div class="paper-heading">
+                                <span>표준근로계약서</span>
+                                <span class="paper-page">1 / 2</span>
+                            </div>
+
+                            <div class="paper-line width-70"></div>
+                            <div class="paper-line width-90"></div>
+                            <div class="paper-line width-55"></div>
+
+                            <div class="paper-section">
+                                <strong>제6조 근로시간</strong>
+                                <div class="paper-line width-90"></div>
+                                <div class="paper-line width-75"></div>
+                            </div>
+
+                            <div class="paper-section flagged">
+                                <div class="flagged-heading">
+                                    <strong>제7조 위약금</strong>
+                                    <span class="status status-warning">
+                                        확인 필요
+                                    </span>
+                                </div>
+
+                                <p>
+                                    근로자가 계약기간 내 퇴사하는 경우
+                                    회사에 300만 원을 지급한다.
+                                </p>
+                            </div>
+
+                            <div class="paper-section">
+                                <strong>제8조 휴일</strong>
+                                <div class="paper-line width-85"></div>
+                                <div class="paper-line width-65"></div>
+                            </div>
+                        </div>
+
+                        <div class="preview-law-card">
+                            <span class="law-card-label">관련 법령</span>
+                            <strong>근로기준법 제20조</strong>
+                            <p>위약 예정의 금지</p>
+                            <span class="verified-text">원문 확인 완료</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="trust-strip">
+                <div class="section-inner trust-items">
+                    <div class="trust-item">
+                        <strong>조건 확인</strong>
+                        <span>임금·연차·수습기간 등 점검</span>
+                    </div>
+
+                    <div class="trust-divider"></div>
+
+                    <div class="trust-item">
+                        <strong>법령 검색</strong>
+                        <span>조항과 관련된 법적 근거 확인</span>
+                    </div>
+
+                    <div class="trust-divider"></div>
+
+                    <div class="trust-item">
+                        <strong>원문 검증</strong>
+                        <span>법령 원문과 인용문 대조</span>
+                    </div>
+                </div>
+            </section>
+
+            {# 점검 방식. 히어로의 "점검 방식 보기" 버튼이 여기로 내려온다.
+               전에는 이 섹션이 없어서 버튼이 아무 동작도 하지 않았다. #}
+            <section id="process" class="content-section process-section">
+                <div class="section-inner">
+                    <div class="section-heading">
+                        <p class="eyebrow">점검 방식</p>
+                        <h2>법을 외워서 답하지 않습니다.</h2>
+                        <p class="section-lead">
+                            계약서 조항마다 관련 법조문을 찾아 원문과 글자 단위로 대조합니다.
+                            근거를 제시할 수 없는 판단은 화면에 올리지 않습니다.
+                        </p>
+                    </div>
+
+                    <ol class="process-steps">
+                        <li>
+                            <span class="process-step-no">1</span>
+                            <div>
+                                <strong>개인정보를 먼저 가립니다</strong>
+                                <p>
+                                    이름·주민등록번호·계좌번호처럼 점검에 쓰이지 않는 정보는
+                                    브라우저에서 가린 뒤 보냅니다. 사진과 스캔본은 파일 자체가
+                                    서버로 올라가지 않고 기기 안에서 글자만 읽습니다.
+                                </p>
+                            </div>
+                        </li>
+
+                        <li>
+                            <span class="process-step-no">2</span>
+                            <div>
+                                <strong>근로계약서가 맞는지 확인합니다</strong>
+                                <p>
+                                    이력서나 용역계약서에 근로기준법을 들이대면 틀린 답이 됩니다.
+                                    근로계약서가 아니면 점수를 내지 않고 왜 아닌지 알려드립니다.
+                                </p>
+                            </div>
+                        </li>
+
+                        <li>
+                            <span class="process-step-no">3</span>
+                            <div>
+                                <strong>조항별로 법조문을 찾습니다</strong>
+                                <p>
+                                    계약서를 조항 단위로 나눈 뒤, 각 조항에 관련된 법조문을
+                                    검색합니다. 숫자와 명시 문구는 정해진 규칙으로,
+                                    표현을 바꿔 쓴 조항은 학습한 모델로 찾습니다.
+                                </p>
+                            </div>
+                        </li>
+
+                        <li>
+                            <span class="process-step-no">4</span>
+                            <div>
+                                <strong>인용문을 법령 원문과 대조합니다</strong>
+                                <p>
+                                    화면에 올리기 전, 인용한 법 문장이 실제 법령 원문에
+                                    글자 그대로 있는지 확인합니다. 일치하지 않으면 그 판단은
+                                    결과에서 빼고, 몇 건을 뺐는지 함께 표시합니다.
+                                </p>
+                            </div>
+                        </li>
+                    </ol>
+
+                    <div class="process-notes">
+                        <div class="process-note">
+                            <strong>지어낸 법조문이 나올 수 없습니다</strong>
+                            <p>
+                                근거로 쓰는 법조문은 국가법령정보센터에서 받아 온 원문입니다.
+                                검색된 조문 밖의 내용은 인용할 수 없고, 인용문이 원문과
+                                다르면 그 판단 자체가 버려집니다.
+                            </p>
+                        </div>
+
+                        <div class="process-note">
+                            <strong>같은 계약서는 늘 같은 결과입니다</strong>
+                            <p>
+                                외부 AI에 문의하지 않고 정해진 규칙과 학습된 모델로만
+                                판단하므로, 같은 계약서를 여러 번 넣어도 결과가 달라지지 않습니다.
+                            </p>
+                        </div>
+
+                        <div class="process-note">
+                            <strong>계약서가 서버에 남지 않습니다</strong>
+                            <p>
+                                점검이 끝나면 내용이 메모리에서 사라집니다. 데이터베이스에
+                                저장하지 않고, 외부 업체로 보내지 않습니다.
+                            </p>
+                        </div>
+                    </div>
+
+                    <p class="process-caveat">
+                        이 점검은 법률 자문이 아닙니다. 계약서에 적히지 않은 실제 근무조건,
+                        회사 내부 규정, 개별 사정에 따라 판단이 달라질 수 있습니다.
+                        구체적인 분쟁이나 법적 판단이 필요하시면 공인노무사·변호사 또는
+                        고용노동부 고객상담센터(국번없이 1350)에 상담하시기 바랍니다.
+                    </p>
+                </div>
+            </section>
+
+            <section id="faq" class="content-section faq-section">
+                <div class="section-inner">
+                    <div class="section-heading">
+                        <p class="eyebrow">자주 묻는 질문</p>
+                        <h2>이용 전 확인해 주세요.</h2>
+                    </div>
+
+                    <div class="faq-list">
+                        <details>
+                            <summary>점검 결과를 법률 자문으로 볼 수 있나요?</summary>
+                            <p>
+                                아닙니다. Overfit의 점검 결과는 근로계약서 검토를 돕기 위한 참고 정보이며 
+                                변호사나 공인노무사의 법률 자문을 대신하지 않습니다. 구체적인 분쟁이나 법적 판단이 필요한 경우 
+                                전문가 또는 관할 기관에 상담하시기를 권장합니다.
+                            </p>
+                        </details>
+
+                        <details>
+                            <summary>문제가 없다고 표시되면 안전한 계약서인가요?</summary>
+                            <p>
+                                문제가 발견되지 않았다는 결과가 계약서의 완전한 적법성을 보장하지는 않습니다.
+                                계약서에 작성되지 않은 실제 근무조건, 
+                                회사 내부 규정, 단체협약 및 개별 상황에 따라 판단이 달라질 수 있습니다.
+                            </p>
+                        </details>
+
+                        <details>
+                            <summary>어떤 내용을 확인하나요?</summary>
+                            <p>
+                                임금 및 최저임금, 근로시간, 휴게시간, 휴일과 연차, 수습기간, 계약기간, 퇴직 및 해고 조건,
+                                위약금이나 손해배상 예정 등 근로계약에서 중요하게 확인해야 하는 항목을 점검합니다.
+                            </p>
+                        </details>
+
+                        <details>
+                            <summary>위험도 점수는 어떻게 계산되나요?</summary>
+                            <p>
+                                법령 위반 소지가 있는 조항 1건에 25점, 근로자에게 불리할 수 있는 조항 1건에 10점을
+                                더하고 100점에서 멈춥니다. 조항 수로 나누지 않습니다 &mdash; 위약금 조항 하나가 있는
+                                계약서는 조항이 5개든 50개든 똑같이 위험하기 때문입니다.
+                                결과 화면에 실제 계산식을 그대로 표시하므로 숫자가 어떻게 나왔는지 직접 확인하실 수 있습니다.
+                                이 점수는 법적 판단이 아니라 무엇부터 확인할지 정하는 순서입니다.
+                            </p>
+                        </details>
+
+                        <details>
+                            <summary>근로계약서가 없어도 체험할 수 있나요?</summary>
+                            <p>
+                                네. 서비스에서 제공하는 샘플 계약서를 선택하면 별도의 문서 없이 점검 과정을 체험할 수 있습니다.
+                                명확한 위험 조항, 문맥 분석이 필요한 조항, 
+                                문제가 발견되지 않는 정상 계약서 샘플을 각각 확인할 수 있습니다.
+                            </p>
+                        </details>
+
+                        <details>
+                            <summary>검토 의견서는 어떻게 활용하나요?</summary>
+                            <p>
+                                검토 의견서에는 계약서 원문과 함께 확인된 문제, 관련 근거 및 수정 제안이 정리됩니다.
+                                원문을 임의로 변경하는 문서가 아니며
+                                사용자와 사업주가 계약조건을 확인하고 협의하기 위한 참고 자료로 활용할 수 있습니다.
+                            </p>
+                        </details>
+
+                        <details>
+                            <summary>계약서를 입력할 때 개인정보를 포함해도 되나요?</summary>
+                            <p>
+                                주민등록번호, 주소, 전화번호, 계좌번호, 서명 등 점검에 필요하지 않은 개인정보는
+                                삭제하거나 가린 후 입력하는 것을 권장합니다.
+                                서비스 운영자는 실제 저장·보관·삭제 방식에 맞춰 개인정보 처리방침도 별도로 제공해야 합니다.
+                            </p>
+                        </details>
+
+                        <details>
+                            <summary>결과에 표시된 법령은 어디에서 확인할 수 있나요?</summary>
+                            <p>
+                                결과 화면에서 해당 판단과 관련된 법령명과 조문을 확인할 수 있습니다.
+                                법령은 개정될 수 있으므로 중요한 의사결정 전에는 국가법령정보센터의 최신 원문도 함께 확인하시기를 권장합니다.
+                            </p>
+                        </details>
+
+                        <details>
+                            <summary>결과에 관해 추가로 문의하려면 어떻게 하나요?</summary>
+                            <p>
+                                페이지 하단의 문의하기를 통해 이름, 답변받을 이메일, 문의 유형과 내용을 입력해 주세요.
+                                접수된 문의는 확인 후 입력한 이메일 주소로 답변드립니다.
+                            </p>
+                        </details>
+                    </div>
+                </div>
+            </section>
+        </section>
+
+        <section id="uploadPage" class="page">
+            <div class="workspace-page">
+                <div class="workspace-heading">
+                    <button
+                        type="button"
+                        class="back-button"
+                        data-page-link="home"
+                    >
+                        ← 처음으로
+                    </button>
+
+                    <p class="step-label">1단계 · 계약서 입력</p>
+                    <h1>확인할 계약서를 입력해 주세요.</h1>
+                    <p>
+                        개인정보가 포함되어 있다면 필요한 부분을 가린 후
+                        입력해도 됩니다.
+                    </p>
+                </div>
+
+                <div class="upload-container">
+                    <div class="input-tabs" role="tablist">
+                        <button
+                            type="button"
+                            class="input-tab active"
+                            data-input-tab="file"
+                        >
+                            PDF 업로드
+                        </button>
+
+                        <button
+                            type="button"
+                            class="input-tab"
+                            data-input-tab="text"
+                        >
+                            직접 입력
+                        </button>
+                    </div>
+
+                    <div id="filePanel" class="input-panel active">
+                        <label
+                            id="dropZone"
+                            class="drop-zone"
+                            for="contractFile"
+                        >
+                            <input
+                                id="contractFile"
+                                type="file"
+                                accept=".pdf,application/pdf"
+                            >
+
+                            <span class="upload-symbol">↑</span>
+                            <strong>근로계약서 파일을 올려주세요.</strong>
+                            <span>
+                                이 영역으로 파일을 끌어오거나 클릭해 선택하세요.
+                            </span>
+                            <span class="file-condition">PDF · 최대 10MB</span>
+                        </label>
+
+                        <div id="selectedFile" class="selected-file hidden">
+                            <div class="file-icon">PDF</div>
+
+                            <div class="file-information">
+                                <strong id="selectedFileName">근로계약서.pdf</strong>
+                                <span id="selectedFileSize">1.2MB</span>
+
+                                <div class="file-progress">
+                                    <span></span>
+                                </div>
+                            </div>
+
+                            <button
+                                id="removeFileButton"
+                                type="button"
+                                class="text-button danger"
+                            >
+                                삭제
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="textPanel" class="input-panel">
+                        <label class="textarea-label" for="contractText">
+                            계약서 내용
+                        </label>
+
+                        <textarea
+                            id="contractText"
+                            placeholder="근로계약서 내용을 여기에 붙여넣어 주세요.
+
+                            예시)
+                            제1조 근로계약기간
+                            근로계약기간은 2026년 1월 1일부터..."
+                        ></textarea>
+
+                        <div class="textarea-footer">
+                            <span id="textCount">0자 입력</span>
+                            <button
+                                id="insertSampleButton"
+                                type="button"
+                                class="text-button"
+                            >
+                                예시 내용 넣기
+                            </button>
+                        </div>
+
+                        <div id="samplePicker" class="sample-picker" style="display:none"></div>
+                        <div id="sampleSource" class="sample-source" style="display:none"></div>
+                    </div>
+
+                    {# 업로드한 PDF에서 무엇이 가려졌는지 눈으로 확인하는 자리 #}
+                    <div id="maskPreview" class="mask-preview" style="display:none">
+                        <strong>민감정보 마스킹 미리보기</strong>
+                        <div id="maskPreviewBody" class="mask-preview-body"></div>
+                        <p id="maskPreviewNote" class="mask-preview-note"></p>
+                    </div>
+
+                    <div class="privacy-notice">
+                        <strong>입력 전 확인해 주세요.</strong>
+                        <p>
+                            주민등록번호, 주소, 연락처 등 분석에 필요하지 않은
+                            개인정보는 가린 뒤 입력하는 것을 권장합니다.
+                        </p>
+                    </div>
+
+                    <button
+                        id="analyzeButton"
+                        type="button"
+                        class="button button-primary button-full"
+                        disabled
+                    >
+                        계약서 확인하기
+                        <span aria-hidden="true">→</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section id="loadingPage" class="page">
+            <div class="loading-page">
+                <div class="loading-card">
+                    <div class="loading-heading">
+                        <span class="loading-document-icon">문서</span>
+                        <p class="step-label">2단계 · 계약서 점검</p>
+                        <h1>계약서를 확인하고 있습니다.</h1>
+                        <p>
+                            근로조건과 관련 법령을 하나씩 대조하고 있습니다.
+                        </p>
+                    </div>
+
+                    <div class="pipeline">
+                        <div class="pipeline-step active" data-pipeline-step="0">
+                            <span class="pipeline-marker">1</span>
+                            <div>
+                                <strong>계약서 조항 분리</strong>
+                                <span>계약서 구조를 확인합니다.</span>
+                            </div>
+                        </div>
+
+                        <div class="pipeline-step" data-pipeline-step="1">
+                            <span class="pipeline-marker">2</span>
+                            <div>
+                                <strong>주요 조건 확인</strong>
+                                <span>임금과 근로조건을 살펴봅니다.</span>
+                            </div>
+                        </div>
+
+                        <div class="pipeline-step" data-pipeline-step="2">
+                            <span class="pipeline-marker">3</span>
+                            <div>
+                                <strong>관련 법령 검색</strong>
+                                <span>관련된 법적 근거를 찾습니다.</span>
+                            </div>
+                        </div>
+
+                        <div class="pipeline-step" data-pipeline-step="3">
+                            <span class="pipeline-marker">4</span>
+                            <div>
+                                <strong>법령 원문 검증</strong>
+                                <span>인용문과 법령 원문을 대조합니다.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="progress-area">
+                        <div class="progress-heading">
+                            <span id="progressDescription">계약서 구조 확인 중</span>
+                            <strong id="progressPercent">12%</strong>
+                        </div>
+
+                        <div class="progress-track">
+                            <span id="progressBar" style="width: 12%"></span>
+                        </div>
+                    </div>
+
+                    <div class="loading-notice">
+                        화면을 닫지 말고 잠시만 기다려 주세요.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="resultPage" class="page">
+            <div class="result-page">
+                <div class="result-header">
+                    <div>
+                        <button
+                            type="button"
+                            class="back-button"
+                            data-page-link="upload"
+                        >
+                            ← 다른 계약서 확인
+                        </button>
+
+                        <p class="step-label">3단계 · 점검 결과</p>
+                        <h1>근로계약서 점검 결과</h1>
+
+                        <div class="result-document-name">
+                            <span>PDF</span>
+                            <strong id="resultFileName">근로계약서.pdf</strong>
+                            <small>방금 분석</small>
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="button button-secondary"
+                        onclick="window.print()"
+                    >
+                        결과 인쇄
+                    </button>
+                </div>
+
+                {# 위험도. 산식을 그대로 노출한다 — 근거 없는 숫자는 신뢰를 얻지 못한다. #}
+                <section id="riskBox" class="risk-box" style="display:none">
+                    <div class="risk-score">
+                        <strong id="riskNumber">0</strong>
+                        <span>점</span>
+                    </div>
+
+                    <div class="risk-detail">
+                        <strong id="riskGrade">—</strong>
+                        <p id="riskMessage"></p>
+                        <p id="riskFormula" class="risk-formula"></p>
+                        <details class="risk-how">
+                            <summary>이 점수는 어떻게 계산되나요?</summary>
+                            <p>
+                                법령 위반 소지가 있는 조항 1건에 25점, 근로자에게 불리할 수 있는
+                                조항 1건에 10점을 더하고 100점에서 멈춥니다. 조항 수로 나누지
+                                않습니다 &mdash; 위약금 조항 하나가 있는 계약서는 조항이 5개든
+                                50개든 똑같이 위험하기 때문입니다.
+                            </p>
+                            <p>
+                                0&ndash;25점은 확인할 것이 적은 상태, 26&ndash;60점은 조항별
+                                확인이 필요한 상태, 61점 이상은 전문가 상담을 권하는 상태로 봅니다.
+                            </p>
+                            <p>
+                                이 점수는 법적 판단이 아니라 <b>무엇부터 볼지 정하는 순서</b>입니다.
+                                점수가 낮아도 계약서에 적히지 않은 실제 근무조건까지는 확인할 수 없습니다.
+                            </p>
+                        </details>
+                    </div>
+                </section>
+
+                <section class="result-summary">
+                    <div class="summary-message">
+                        <span class="summary-icon">!</span>
+                        <div>
+                            <h2>
+                                12개 조항 중
+                                <strong>3개 조항</strong>을 확인해 주세요.
+                            </h2>
+                            <p>
+                                확인이 필요한 내용과 관련 법령을 아래에서
+                                살펴볼 수 있습니다.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="summary-numbers">
+                        <div>
+                            <strong>12</strong>
+                            <span>전체 조항</span>
+                        </div>
+
+                        <div class="warning-number">
+                            <strong>3</strong>
+                            <span>확인 필요</span>
+                        </div>
+
+                        <div>
+                            <strong>8</strong>
+                            <span>특이사항 없음</span>
+                        </div>
+
+                        <div>
+                            <strong>1</strong>
+                            <span>검증 제외</span>
+                        </div>
+                    </div>
+                </section>
+
+                <button
+                    id="verificationBanner"
+                    type="button"
+                    class="verification-banner"
+                >
+                    <span class="banner-shield">✓</span>
+
+                    <span>
+                        <strong>법령 원문 검증이 작동했습니다.</strong>
+                        근거를 확인할 수 없었던 판단 1건을 결과에서 제외했습니다.
+                    </span>
+
+                    <span class="banner-action">자세히 보기 →</span>
+                </button>
+
+                <div class="result-toolbar">
+                    <div class="filter-buttons">
+                        <button
+                            type="button"
+                            class="filter-button active"
+                            data-filter="all"
+                        >
+                            전체
+                        </button>
+
+                        <button
+                            type="button"
+                            class="filter-button"
+                            data-filter="warning"
+                        >
+                            확인 필요 3
+                        </button>
+
+                        <button
+                            type="button"
+                            class="filter-button"
+                            data-filter="safe"
+                        >
+                            특이사항 없음 8
+                        </button>
+                    </div>
+
+                    <label class="search-box">
+                        <span>검색</span>
+                        <input
+                            id="clauseSearch"
+                            type="search"
+                            placeholder="조항 또는 내용 검색"
+                        >
+                    </label>
+                </div>
+
+                <div class="document-workspace">
+                    <aside class="original-document">
+                        <div class="pane-heading">
+                            <div>
+                                <strong>계약서 원문</strong>
+                                <span>조항을 선택하면 결과가 표시됩니다.</span>
+                            </div>
+                            <span class="pane-count">12개 조항</span>
+                        </div>
+
+                        <div class="document-content">
+                            <article
+                                class="original-clause"
+                                data-clause-target="clause-1"
+                            >
+                                <span>제1조</span>
+                                <h3>근로계약기간</h3>
+                                <p>
+                                    근로계약기간은 2026년 1월 1일부터
+                                    2026년 12월 31일까지로 한다.
+                                </p>
+                            </article>
+
+                            <article
+                                class="original-clause"
+                                data-clause-target="clause-2"
+                            >
+                                <span>제2조</span>
+                                <h3>근무장소 및 업무</h3>
+                                <p>
+                                    근로자는 회사가 지정한 장소에서
+                                    지정된 업무를 수행한다.
+                                </p>
+                            </article>
+
+                            <article
+                                class="original-clause highlighted"
+                                data-clause-target="clause-7"
+                            >
+                                <div class="clause-label-row">
+                                    <span>제7조</span>
+                                    <span class="status status-warning">
+                                        확인 필요
+                                    </span>
+                                </div>
+
+                                <h3>위약금</h3>
+                                <p>
+                                    근로자가 계약기간 내 퇴사하는 경우
+                                    회사에 300만 원을 지급한다.
+                                </p>
+                            </article>
+
+                            <article
+                                class="original-clause"
+                                data-clause-target="clause-8"
+                            >
+                                <span>제8조</span>
+                                <h3>근로시간</h3>
+                                <p>
+                                    근로시간은 오전 9시부터 오후 6시까지로 하며,
+                                    휴게시간은 1시간으로 한다.
+                                </p>
+                            </article>
+
+                            <article
+                                class="original-clause warning-light"
+                                data-clause-target="clause-9"
+                            >
+                                <div class="clause-label-row">
+                                    <span>제9조</span>
+                                    <span class="status status-warning">
+                                        확인 필요
+                                    </span>
+                                </div>
+
+                                <h3>연차유급휴가</h3>
+                                <p>
+                                    근로자에게 연간 10일의 유급휴가를 부여한다.
+                                </p>
+                            </article>
+
+                            <article
+                                class="original-clause warning-light"
+                                data-clause-target="clause-10"
+                            >
+                                <div class="clause-label-row">
+                                    <span>제10조</span>
+                                    <span class="status status-warning">
+                                        확인 필요
+                                    </span>
+                                </div>
+
+                                <h3>수습기간</h3>
+                                <p>
+                                    입사일로부터 6개월 동안을 수습기간으로 한다.
+                                </p>
+                            </article>
+                        </div>
+                    </aside>
+
+                    <section class="analysis-pane">
+                        <div class="pane-heading">
+                            <div>
+                                <strong>점검 결과</strong>
+                                <span>판단 이유와 관련 법령을 확인하세요.</span>
+                            </div>
+                        </div>
+
+                        <div class="analysis-list">
+                            <article
+                                id="clause-7"
+                                class="analysis-card selected"
+                                data-status="warning"
+                                data-search="제7조 위약금 퇴사 300만원 근로기준법 제20조"
+                            >
+                                <div class="analysis-card-header">
+                                    <div>
+                                        <span class="clause-number">제7조</span>
+                                        <h2>위약금</h2>
+                                    </div>
+
+                                    <span class="status status-warning">
+                                        확인 필요
+                                    </span>
+                                </div>
+
+                                <div class="contract-quote">
+                                    “근로자가 계약기간 내 퇴사하는 경우
+                                    회사에 300만 원을 지급한다.”
+                                </div>
+
+                                <div class="analysis-section">
+                                    <h3>왜 확인이 필요한가요?</h3>
+                                    <p>
+                                        근로계약 불이행에 대한 위약금이나
+                                        손해배상액을 미리 정한 내용으로 볼
+                                        가능성이 있습니다.
+                                    </p>
+                                </div>
+
+                                <div class="analysis-section">
+                                    <h3>관련 법적 근거</h3>
+
+                                    <div class="law-reference">
+                                        <div class="law-reference-heading">
+                                            <div>
+                                                <strong>근로기준법 제20조</strong>
+                                                <span>위약 예정의 금지</span>
+                                            </div>
+
+                                            <span class="verified-badge">
+                                                원문 확인
+                                            </span>
+                                        </div>
+
+                                        <blockquote>
+                                            사용자는 근로계약 불이행에 대한 위약금
+                                            또는 손해배상액을 예정하는 계약을
+                                            체결하지 못한다.
+                                        </blockquote>
+
+                                        <button type="button" class="law-link">
+                                            국가법령정보센터에서 확인 →
+                                        </button>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <article
+                                id="clause-9"
+                                class="analysis-card"
+                                data-status="warning"
+                                data-search="제9조 연차유급휴가 10일 근로기준법 제60조"
+                            >
+                                <div class="analysis-card-header">
+                                    <div>
+                                        <span class="clause-number">제9조</span>
+                                        <h2>연차유급휴가</h2>
+                                    </div>
+
+                                    <span class="status status-warning">
+                                        확인 필요
+                                    </span>
+                                </div>
+
+                                <div class="contract-quote">
+                                    “근로자에게 연간 10일의 유급휴가를 부여한다.”
+                                </div>
+
+                                <div class="analysis-section">
+                                    <h3>왜 확인이 필요한가요?</h3>
+                                    <p>
+                                        근속기간과 출근율에 따라 법에서 정한
+                                        연차유급휴가 기준보다 불리할 수 있습니다.
+                                    </p>
+                                </div>
+
+                                <div class="analysis-section">
+                                    <h3>관련 법적 근거</h3>
+
+                                    <div class="law-reference">
+                                        <div class="law-reference-heading">
+                                            <div>
+                                                <strong>근로기준법 제60조</strong>
+                                                <span>연차 유급휴가</span>
+                                            </div>
+
+                                            <span class="verified-badge">
+                                                원문 확인
+                                            </span>
+                                        </div>
+
+                                        <blockquote>
+                                            사용자는 1년간 80퍼센트 이상 출근한
+                                            근로자에게 15일의 유급휴가를 주어야 한다.
+                                        </blockquote>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <article
+                                id="clause-10"
+                                class="analysis-card"
+                                data-status="warning"
+                                data-search="제10조 수습기간 6개월"
+                            >
+                                <div class="analysis-card-header">
+                                    <div>
+                                        <span class="clause-number">제10조</span>
+                                        <h2>수습기간</h2>
+                                    </div>
+
+                                    <span class="status status-warning">
+                                        확인 필요
+                                    </span>
+                                </div>
+
+                                <div class="contract-quote">
+                                    “입사일로부터 6개월 동안을 수습기간으로 한다.”
+                                </div>
+
+                                <div class="analysis-section">
+                                    <h3>왜 확인이 필요한가요?</h3>
+                                    <p>
+                                        수습기간 동안의 임금과 해고 조건이 함께
+                                        명시되어 있는지 추가로 확인할 필요가 있습니다.
+                                    </p>
+                                </div>
+                            </article>
+
+                            <article
+                                id="clause-8"
+                                class="analysis-card"
+                                data-status="safe"
+                                data-search="제8조 근로시간 오전 9시 오후 6시 휴게시간"
+                            >
+                                <div class="analysis-card-header">
+                                    <div>
+                                        <span class="clause-number">제8조</span>
+                                        <h2>근로시간</h2>
+                                    </div>
+
+                                    <span class="status status-safe">
+                                        특이사항 없음
+                                    </span>
+                                </div>
+
+                                <p class="safe-description">
+                                    입력된 내용에서 별도로 확인이 필요한 사항을
+                                    찾지 못했습니다.
+                                </p>
+                            </article>
+                        </div>
+
+                        <div id="emptyResult" class="empty-result hidden">
+                            <strong>일치하는 결과가 없습니다.</strong>
+                            <p>검색어 또는 필터를 변경해 주세요.</p>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="legal-disclaimer">
+                    <strong>안내</strong>
+                    <p>
+                        본 결과는 계약서 검토를 돕기 위한 참고 정보이며 법률
+                        자문이 아닙니다. 실제 분쟁이나 구체적인 법률 판단이
+                        필요한 경우 공인노무사, 변호사 또는 관계 기관과
+                        상담하시기 바랍니다.
+                    </p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="drawerOverlay" class="drawer-overlay"></div>
+
+    <aside
+        id="verificationDrawer"
+        class="verification-drawer"
+        aria-hidden="true"
+    >
+        <div class="drawer-header">
+            <div>
+                <span class="drawer-label">검증 내역</span>
+                <h2>법령 원문 검증</h2>
+            </div>
+
+            <button
+                id="closeDrawerButton"
+                type="button"
+                class="drawer-close"
+                aria-label="닫기"
+            >
+                ×
+            </button>
+        </div>
+
+        <div class="drawer-content">
+            <p class="drawer-introduction">
+                자동으로 생성된 판단을 그대로 표시하지 않고,
+                법적 근거를 다시 확인한 결과입니다.
+            </p>
+
+            <div class="drawer-statistics">
+                <div>
+                    <strong>13</strong>
+                    <span>생성된 판단</span>
+                </div>
+
+                <div>
+                    <strong>12</strong>
+                    <span>검증 통과</span>
+                </div>
+
+                <div>
+                    <strong>1</strong>
+                    <span>결과 제외</span>
+                </div>
+            </div>
+
+            <div class="drawer-progress">
+                <span style="width: 92.3%"></span>
+            </div>
+
+            <section class="drawer-section">
+                <h3>검증 조건</h3>
+
+                <ul>
+                    <li>
+                        <span>✓</span>
+                        검색된 법령에 존재하는 근거인지 확인
+                    </li>
+                    <li>
+                        <span>✓</span>
+                        인용문이 실제 법령 원문과 일치하는지 확인
+                    </li>
+                    <li>
+                        <span>✓</span>
+                        충분한 길이의 근거 문장인지 확인
+                    </li>
+                </ul>
+            </section>
+
+            <div class="excluded-notice">
+                <strong>1건의 판단이 제외되었습니다.</strong>
+                <p>
+                    법령 원문에서 근거 문구를 정확하게 확인할 수 없어
+                    사용자 결과에 포함하지 않았습니다.
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <div class="footer-top">
+                <div class="footer-brand">
+                    <img
+                        src="{{ url_for('static', filename='images/image.png') }}"
+                        alt="계약체크 로고"
+                        class="footer-logo"
+                    >
+
+                    <div>
+                        <strong>Overfit</strong>
+                        <p>법령 원문에 근거한 근로계약서 점검 서비스</p>
+                    </div>
+                </div>
+
+                <nav class="footer-links" aria-label="푸터 메뉴">
+                    <a href="#" id="openServiceModal">서비스 소개</a>
+                    <a href="/terms">이용약관</a>
+                    <a href="/privacy">개인정보처리방침</a>
+                    <a href="#" id="openContactModal">문의하기</a>
+
+                    <div
+                        id="contactModal"
+                        class="contact-modal"
+                        aria-hidden="true"
+                    >
+                        <div
+                            class="contact-modal-box"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="contactModalTitle"
+                        >
+                            <div class="contact-modal-header">
+                                <div>
+                                    <p class="contact-modal-label">문의하기</p>
+                                    <h2 id="contactModalTitle">
+                                        무엇을 도와드릴까요?
+                                    </h2>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    id="closeContactModal"
+                                    class="contact-modal-close"
+                                    aria-label="문의 창 닫기"
+                                >
+                                    ×
+                                </button>
+                            </div>
+
+                            <p class="contact-modal-description">
+                                문의 내용을 남겨주시면 확인 후 입력하신 이메일로
+                                답변드리겠습니다.
+                            </p>
+
+                            <form id="contactForm" class="contact-form">
+                                <div class="contact-field-row">
+                                    <label class="contact-field">
+                                        <span>이름</span>
+
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            placeholder="이름을 입력해 주세요."
+                                            required
+                                        >
+                                    </label>
+
+                                    <label class="contact-field">
+                                        <span>이메일</span>
+
+                                        <input
+                                            type="email"
+                                            name="email"
+                                            placeholder="example@email.com"
+                                            required
+                                        >
+                                    </label>
+                                </div>
+
+                                <label class="contact-field">
+                                    <span>문의 유형</span>
+
+                                    <select name="category" required>
+                                        <option value="">문의 유형을 선택해 주세요.</option>
+                                        <option value="service">서비스 이용 문의</option>
+                                        <option value="analysis">계약서 점검 결과 문의</option>
+                                        <option value="privacy">개인정보 및 보안 문의</option>
+                                        <option value="partnership">제휴 및 협업 문의</option>
+                                        <option value="other">기타 문의</option>
+                                    </select>
+                                </label>
+
+                                <label class="contact-field">
+                                    <span>문의 내용</span>
+
+                                    <textarea
+                                        name="message"
+                                        rows="6"
+                                        maxlength="1000"
+                                        placeholder="문의하실 내용을 입력해 주세요."
+                                        required
+                                    ></textarea>
+
+                                    <small>
+                                        <span id="contactMessageCount">0</span> / 1,000자
+                                    </small>
+                                </label>
+
+                                <label class="contact-agreement">
+                                    <input
+                                        type="checkbox"
+                                        name="privacyAgreement"
+                                        required
+                                    >
+
+                                    <span>
+                                        문의 답변을 위한 개인정보 수집 및 이용에 동의합니다.
+                                    </span>
+                                </label>
+
+                                <div
+                                    id="contactFormMessage"
+                                    class="contact-form-message"
+                                    role="status"
+                                ></div>
+
+                                <div class="contact-form-actions">
+                                    <button
+                                        type="button"
+                                        id="cancelContactModal"
+                                        class="contact-cancel-button"
+                                    >
+                                        취소
+                                    </button>
+
+                                    <button
+                                        type="submit"
+                                        class="contact-submit-button"
+                                    >
+                                        문의 보내기
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </nav>
+            </div>
+
+            <div class="footer-notice">
+                <p>
+                    Overfit이 제공하는 점검 결과는 일반적인 정보 제공을 위한
+                    참고 자료이며 법률 자문이나 법적 판단을 대신하지 않습니다.
+                </p>
+
+                <p>
+                    구체적인 법률 판단이 필요한 경우 변호사, 공인노무사 또는
+                    관계 기관에 상담하시기 바랍니다.
+                </p>
+            </div>
+
+            <div class="footer-bottom">
+                <p>© 2026 Overfit.</p>
+            </div>
+        </div>
+    </footer>
+
+    <div
+        id="serviceModal"
+        class="service-modal"
+        aria-hidden="true"
+        hidden
+    >
+        <div
+            class="service-modal-box"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="serviceModalTitle"
+        >
+            <button
+                type="button"
+                id="closeServiceModal"
+                class="service-modal-close"
+                aria-label="서비스 소개 닫기"
+            >
+                ×
+            </button>
+
+            <p class="service-modal-label">ABOUT OVERFIT</p>
+
+            <h2 id="serviceModalTitle">
+                Overfit은 어떤 서비스인가요?
+            </h2>
+
+            <p class="service-modal-description">
+                Overfit은 근로계약서의 임금, 근로시간, 휴일,
+                수습기간, 위약금 등 주요 조건을 점검하고,
+                확인이 필요한 조항을 관련 법령과 함께 안내하는 서비스입니다.
+            </p>
+
+            <p class="service-modal-description">
+                계약서를 직접 입력하거나 PDF 파일로 업로드할 수 있으며,
+                점검 결과와 관련 법령, 위험도 및 수정 제안을 확인할 수 있습니다.
+            </p>
+
+            <div class="service-modal-notice">
+                점검 결과는 정보 제공을 위한 참고 자료이며,
+                법률 자문이나 법적 판단을 대신하지 않습니다.
+            </div>
+        </div>
     </div>
-  {% endif %}
 
-  {% if result and result.meta.input_check.ok and result.meta.analyzable %}
-    {% set m = result.meta %}
-    {% set r = m.risk %}
-    {% set rc = 'var(--red)' if r.score >= 61 else ('var(--amber)' if r.score >= 26 else 'var(--green)') %}
-    <div class="risk">
-      <div class="num" style="color:{{ rc }}">{{ r.score }}<span style="font-size:1rem;font-weight:600">점</span></div>
-      <div>
-        <div class="grade" style="color:{{ rc }}">{{ r.grade }}</div>
-        <div class="msg">{{ r.message }}</div>
-        <div class="formula">{{ r.formula }}</div>
-      </div>
-    </div>
-    <div class="stats">
-      <div class="stat"><div class="n">{{ m.clause_count }}</div><div class="k">검토한 조항</div></div>
-      <div class="stat"><div class="n" style="color:var(--red)">{{ m.violation_count }}</div><div class="k">위반 소지</div></div>
-      <div class="stat"><div class="n" style="color:var(--amber)">{{ m.unfavorable_count }}</div><div class="k">불리 조항</div></div>
-      <div class="stat gate"><div class="n">{{ m.blocked_by_gate }}</div><div class="k">인용 검증에서 차단</div></div>
-    </div>
-    <p class="src">룰 검사 {{ m.rule_findings }}건 · 학습 모델 {{ m.model_findings }}건 · LLM {{ m.llm_findings }}건</p>
-    {% if m.masked_message %}<div class="weak">{{ m.masked_message }}</div>{% endif %}
-    {% if m.input_check.weak %}<div class="weak">{{ m.input_check.message }}</div>{% endif %}
+    <script src="{{ url_for('static', filename='js/render.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/mask.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ocr.js') }}"></script>
+    <script>
+        const pages = {
+            home: document.getElementById("homePage"),
+            upload: document.getElementById("uploadPage"),
+            loading: document.getElementById("loadingPage"),
+            result: document.getElementById("resultPage")
+        };
 
-    {% if not result.findings %}
-      <div class="ok-msg">법조문과 대조해 문제되는 조항을 찾지 못했습니다.</div>
-    {% endif %}
+        const fileInput = document.getElementById("contractFile");
+        const selectedFile = document.getElementById("selectedFile");
+        const selectedFileName = document.getElementById("selectedFileName");
+        const selectedFileSize = document.getElementById("selectedFileSize");
+        const resultFileName = document.getElementById("resultFileName");
+        const removeFileButton = document.getElementById("removeFileButton");
+        const contractText = document.getElementById("contractText");
+        const textCount = document.getElementById("textCount");
+        const analyzeButton = document.getElementById("analyzeButton");
+        const insertSampleButton = document.getElementById("insertSampleButton");
+        const dropZone = document.getElementById("dropZone");
 
-    {% for f in result.findings %}
-    <div class="card">
-      <span class="badge {{ f.severity }}">{{ f.severity_label }}</span>
-      <strong style="margin-left:6px">{{ f.clause_title }}</strong>
-      <span class="src">· {{ {'rule':'룰 검사','model':'학습 모델','llm':'LLM 판정'}[f.source] }}</span>
-      <div class="clause">{{ f.clause_text[:400] }}{% if f.clause_text|length > 400 %}…{% endif %}</div>
-      <div><span class="k">왜 문제인가</span> — {{ f.reason }}</div>
-      <div style="margin-top:8px"><span class="k">근거</span> — <code>{{ f.law_label }}</code></div>
-      <div class="quote" style="color:{{ 'var(--red)' if f.severity == 'violation' else 'var(--amber)' }}">{{ f.quote }}</div>
-      {% if f.suggestion %}<div><span class="k">대체 문구 제안</span> — {{ f.suggestion }}</div>{% endif %}
-    </div>
-    {% endfor %}
+        let activeInputType = "file";
+        let currentFilter = "all";
 
-    {% if result.dropped %}
-    <details>
-      <summary>인용 검증에서 차단된 판정 {{ result.dropped|length }}건 보기</summary>
-      <p>모델이 내놓았지만 근거 조문이 검색 결과에 없거나 인용문이 원문과 일치하지 않아 사용자에게 표시하지 않은 판정입니다.</p>
-      <ul>
-      {% for d in result.dropped %}
-        <li><code>{{ d.clause_id }}</code> → 주장한 근거 <code>{{ d.claimed_law_id or '(없음)' }}</code> · 인용 &ldquo;{{ d.claimed_quote[:60] or '(없음)' }}&rdquo;</li>
-      {% endfor %}
-      </ul>
-    </details>
-    {% endif %}
-  {% endif %}
+        function showPage(pageName) {
+            Object.values(pages).forEach((page) => {
+                page.classList.remove("active");
+            });
 
-  {% if result and result.meta.input_check.ok and result.meta.analyzable and result.findings %}
-    <form method="post" action="/download">
-      <input type="hidden" name="text" value="{{ text }}">
-      <button type="submit" class="dl">검토 의견서 내려받기 (.md)</button>
-    </form>
-  {% endif %}
+            pages[pageName].classList.add("active");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
 
-  <footer>
-    이 도구는 법률 자문이 아닙니다. 참고용 검토 결과이며, 실제 분쟁이나 계약 체결 판단은
-    노무사·변호사 또는 고용노동부 상담(☎1350)을 통해 확인하십시오.
-    <br>
-    올린 계약서는 저장하지 않으며, 주민등록번호·계좌번호 등은 보내기 전에 브라우저에서 가립니다.
-    <a href="/privacy">개인정보 처리방침</a>
-  </footer>
+        document.querySelectorAll("[data-page-link]").forEach((button) => {
+            button.addEventListener("click", () => {
+                showPage(button.dataset.pageLink);
+            });
+        });
 
-</div>
-<script src="/static/js/ocr.js"></script>
-<script src="/static/js/mask.js"></script>
-<script>
-/* 보내기 직전에 민감정보를 가린다.
-   서버도 같은 처리를 하지만, 여기서 먼저 가려야 주민등록번호가 네트워크를 타지 않는다.
-   가린 결과를 입력창에 그대로 되돌려 넣어 사용자가 무엇이 가려졌는지 눈으로 본다. */
-document.getElementById('form').addEventListener('submit', function () {
-  const ta = document.getElementById('ta');
-  if (!ta.value.trim()) return;
-  const r = Mask.apply(ta.value);
-  if (Object.keys(r.counts).length) {
-    ta.value = r.text;
-    const note = document.getElementById('maskNote');
-    note.textContent = Mask.summary(r.counts);
-    note.style.display = '';
-  }
-});
+        document.querySelectorAll("[data-scroll-target]").forEach((button) => {
+            button.addEventListener("click", () => {
+                showPage("home");
 
-const SAMPLES = {{ sample_texts|tojson }};
-function loadSample(id) {
-  document.getElementById('ta').value = SAMPLES[id];
-  document.getElementById('ta').focus();
-}
+                window.setTimeout(() => {
+                    document
+                        .getElementById(button.dataset.scrollTarget)
+                        .scrollIntoView({ behavior: "smooth" });
+                }, 50);
+            });
+        });
 
-const box = document.getElementById('ocrbox');
-const msg = document.getElementById('ocrmsg');
-const bar = document.getElementById('ocrbar');
-const ta  = document.getElementById('ta');
-const fileInput = document.getElementById('fileinput');
+        document.querySelectorAll(".input-tab").forEach((tab) => {
+            tab.addEventListener("click", () => {
+                activeInputType = tab.dataset.inputTab;
 
-function show(t)      { box.classList.add('on'); msg.textContent = t; }
-function progress(p)  { bar.style.width = Math.round((p || 0) * 100) + '%'; }
-function hideLater()  { setTimeout(() => box.classList.remove('on'), 9000); }
+                document.querySelectorAll(".input-tab").forEach((item) => {
+                    item.classList.toggle("active", item === tab);
+                });
 
-/* 파일을 고르면 무엇인지 판별해서 알맞은 경로로 보낸다.
-   - 글자가 들어 있는 PDF  -> 서버가 바로 뽑는다 (빠르고 정확)
-   - 스캔 PDF / 이미지      -> 브라우저에서 OCR (느리지만 되긴 된다) */
-fileInput.addEventListener('change', async function () {
-  const f = this.files[0];
-  if (!f) return;
-  document.getElementById('fname').textContent = f.name;
-  progress(0);
+                document
+                    .getElementById("filePanel")
+                    .classList.toggle("active", activeInputType === "file");
 
-  try {
-    if (f.type.startsWith('image/')) {
-      show('사진을 다듬는 중입니다...');
-      const canvas = await OCR.preprocess(f);
-      show('사진에서 글자를 읽는 중입니다. 10~30초 걸릴 수 있습니다...');
-      const text = OCR.tidy(await OCR.imageToText(canvas, progress));
-      finish(text, '사진');
-      return;
-    }
+                document
+                    .getElementById("textPanel")
+                    .classList.toggle("active", activeInputType === "text");
 
-    if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) {
-      show('PDF를 읽는 중입니다...');
-      const fd = new FormData();
-      fd.append('file', f);
-      const res = await fetch('/api/extract', { method: 'POST', body: fd });
-      const data = await res.json();
+                updateAnalyzeButton();
+            });
+        });
 
-      if (data.ok) {                       // 글자가 들어 있는 PDF
-        finish(data.text, 'PDF');
-        // 텍스트를 채운 뒤, 문서 모양 그대로 가려진 그림을 보여준다.
-        // 가렸다는 문장만으로는 확인할 수 없기 때문이다. 실패해도 검사에는 지장이 없다.
-        maskPreview(f);
-        return;
-      }
-      if (['scanned', 'empty', 'broken_text_layer'].includes(data.reason)) {
-        show((data.message || '') + ' 쪽당 10~30초 걸립니다...');
-        const text = OCR.tidy(await OCR.scannedPdfToText(f, show, progress));
-        finish(text, '스캔본');
-        return;
-      }
-      show(data.message || 'PDF를 읽지 못했습니다.');
-      hideLater();
-      return;
-    }
+        function formatFileSize(bytes) {
+            const megabytes = bytes / (1024 * 1024);
+            return `${megabytes.toFixed(1)}MB`;
+        }
 
-    show('지원하지 않는 형식입니다. PDF 또는 이미지 파일을 올려주세요.');
-    hideLater();
-  } catch (e) {
-    show('글자를 읽는 중 문제가 생겼습니다. 계약서 내용을 직접 붙여넣어 주세요.');
-    hideLater();
-  }
-});
+        function handleFile(file) {
+            if (!file) {
+                return;
+            }
 
-/* 마스킹 미리보기.
-   서버가 PDF 페이지를 그림으로 그린 뒤 민감정보 자리에 검은 박스를 덮어 돌려준다.
-   파일은 서버에 저장되지 않고, 응답을 만든 뒤 메모리에서 사라진다. */
-async function maskPreview(file) {
-  const box = document.getElementById('maskPreview');
-  const body = document.getElementById('maskPreviewBody');
-  const note = document.getElementById('maskPreviewNote');
-  try {
-    body.innerHTML = '<p class="src">미리보기를 만드는 중입니다...</p>';
-    box.style.display = '';
+            if (file.type !== "application/pdf") {
+                window.alert("PDF 파일만 업로드할 수 있습니다.");
+                fileInput.value = "";
+                return;
+            }
 
-    const fd = new FormData();
-    fd.append('file', file);
-    const res = await fetch('/api/mask-preview', { method: 'POST', body: fd });
-    const data = await res.json();
+            if (file.size > 10 * 1024 * 1024) {
+                window.alert("파일 크기는 10MB 이하여야 합니다.");
+                fileInput.value = "";
+                return;
+            }
 
-    if (!data.ok || !data.pages || !data.pages.length) {
-      box.style.display = 'none';
-      return;
-    }
+            selectedFileName.textContent = file.name;
+            selectedFileSize.textContent = formatFileSize(file.size);
+            resultFileName.textContent = file.name;
 
-    body.innerHTML = '';
-    data.pages.forEach((p) => {
-      const fig = document.createElement('figure');
-      fig.className = 'previewpage';
-      const img = document.createElement('img');
-      img.src = p.image;
-      img.alt = `${p.page}쪽 마스킹 미리보기`;
-      const cap = document.createElement('figcaption');
-      cap.textContent = `${p.page}쪽`;
-      fig.appendChild(img);
-      fig.appendChild(cap);
-      body.appendChild(fig);
-    });
+            dropZone.classList.add("hidden");
+            selectedFile.classList.remove("hidden");
 
-    const kinds = Object.entries(data.counts || {});
-    const total = kinds.reduce((s, [, v]) => s + v, 0);
-    let msg = total
-      ? `민감정보 ${total}건을 가렸습니다 (${kinds.map(([k, v]) => `${k} ${v}건`).join(', ')}). `
-      : '가릴 민감정보를 찾지 못했습니다. ';
-    msg += '자동 인식은 100%가 아닙니다. 검은 박스가 빠진 개인정보가 없는지 확인한 뒤 검사해 주세요.';
-    if (data.truncated) msg += ` (${data.total_pages}쪽 중 앞 ${data.pages.length}쪽만 표시)`;
-    note.textContent = msg;
-  } catch (e) {
-    box.style.display = 'none';   // 미리보기는 부가 기능이다. 실패해도 검사를 막지 않는다
-  }
-}
+            updateAnalyzeButton();
 
-function finish(text, kind) {
-  progress(1);
-  if (!text || text.trim().length < 20) {
-    show(`${kind}에서 글자를 거의 찾지 못했습니다. 직접 붙여넣어 주세요.`);
-    hideLater();
-    return;
-  }
-  ta.value = text;
-  /* 바로 분석하지 않는다. OCR은 틀릴 수 있으므로 사용자가 확인·수정한 뒤 직접 누르게 한다 */
-  const q = OCR.quality(text);
-  if (!q.good) {
-    show(`${kind}에서 글자를 읽었지만 정확도가 낮아 보입니다 (한글 비율 ${Math.round(q.ratio * 100)}%). `
-       + `아래 내용을 확인하고 틀린 부분을 고치거나, 계약서 내용을 직접 붙여넣어 주세요.`);
-  } else {
-    show(`${kind}에서 ${text.length.toLocaleString()}자를 읽었습니다. 내용을 확인하고 [검사하기]를 눌러주세요.`);
-  }
-  ta.focus();
-  ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  fileInput.value = '';   // 서버로 중복 업로드되지 않도록 비운다
-  document.getElementById('fname').textContent = '';
-  hideLater();
-}
-</script>
+            // 파일을 고른 즉시, 무엇이 가려지는지 눈으로 보여준다.
+            // '가렸습니다'라는 문장만으로는 확인할 수 없기 때문이다.
+            maskPreview(file);
+        }
+
+        /* 마스킹 미리보기.
+           서버가 PDF 페이지를 그림으로 그린 뒤 개인정보 자리에 검은 박스를 덮어 돌려준다.
+           파일은 저장되지 않고 응답을 만든 뒤 메모리에서 사라진다.
+           부가 기능이므로 실패해도 점검 흐름을 막지 않는다. */
+        async function maskPreview(file) {
+            const box = document.getElementById("maskPreview");
+            const body = document.getElementById("maskPreviewBody");
+            const note = document.getElementById("maskPreviewNote");
+            if (!box) return;
+
+            try {
+                body.innerHTML = '<p class="mask-preview-note">미리보기를 만드는 중입니다...</p>';
+                box.style.display = "";
+
+                const fd = new FormData();
+                fd.append("file", file);
+                const res = await fetch("/api/mask-preview", { method: "POST", body: fd });
+                const data = await res.json();
+
+                if (!data.ok || !data.pages || !data.pages.length) {
+                    box.style.display = "none";
+                    return;
+                }
+
+                body.innerHTML = "";
+                data.pages.forEach((pg) => {
+                    const fig = document.createElement("figure");
+                    const img = document.createElement("img");
+                    img.src = pg.image;
+                    img.alt = pg.page + "쪽 마스킹 미리보기";
+                    const cap = document.createElement("figcaption");
+                    cap.textContent = pg.page + "쪽";
+                    fig.appendChild(img);
+                    fig.appendChild(cap);
+                    body.appendChild(fig);
+                });
+
+                const kinds = Object.entries(data.counts || {});
+                const total = kinds.reduce((sum, [, v]) => sum + v, 0);
+                let text = total
+                    ? "민감정보 " + total + "건을 가렸습니다 ("
+                      + kinds.map(([k, v]) => k + " " + v + "건").join(", ") + "). "
+                    : "가릴 민감정보를 찾지 못했습니다. ";
+                text += "자동 인식은 100%가 아닙니다. 검은 박스가 빠진 개인정보가 없는지 "
+                      + "확인한 뒤 점검해 주세요.";
+                if (data.truncated) {
+                    text += " (" + data.total_pages + "쪽 중 앞 " + data.pages.length + "쪽만 표시)";
+                }
+                note.textContent = text;
+            } catch (e) {
+                box.style.display = "none";
+            }
+        }
+
+        fileInput.addEventListener("change", () => {
+            handleFile(fileInput.files[0]);
+        });
+
+        ["dragenter", "dragover"].forEach((eventName) => {
+            dropZone.addEventListener(eventName, (event) => {
+                event.preventDefault();
+                dropZone.classList.add("dragging");
+            });
+        });
+
+        ["dragleave", "drop"].forEach((eventName) => {
+            dropZone.addEventListener(eventName, (event) => {
+                event.preventDefault();
+                dropZone.classList.remove("dragging");
+            });
+        });
+
+        dropZone.addEventListener("drop", (event) => {
+            const file = event.dataTransfer.files[0];
+
+            if (file) {
+                const transfer = new DataTransfer();
+                transfer.items.add(file);
+                fileInput.files = transfer.files;
+                handleFile(file);
+            }
+        });
+
+        removeFileButton.addEventListener("click", () => {
+            fileInput.value = "";
+            selectedFile.classList.add("hidden");
+            dropZone.classList.remove("hidden");
+            resultFileName.textContent = "근로계약서.pdf";
+            updateAnalyzeButton();
+        });
+
+        contractText.addEventListener("input", () => {
+            textCount.textContent =
+                `${contractText.value.trim().length.toLocaleString()}자 입력`;
+
+            updateAnalyzeButton();
+        });
+
+        /* 예시 계약서 넣기.
+           전에는 버튼 안에 문장을 손으로 박아 뒀는데 두 가지가 문제였다.
+           들여쓰기가 그대로 들어가 조항 분할이 흐트러졌고, 그 문장이 어디서 왔는지
+           알 수 없었다. 법률 도구에서 출처 없는 예시는 그 자체로 신뢰를 깎는다.
+           이제 서버의 샘플을 그대로 받아 오고, 출처를 화면에 같이 보여준다. */
+        let sampleList = null;
+
+        async function loadSamples() {
+            if (sampleList) return sampleList;
+            const res = await fetch("/api/samples");
+            sampleList = await res.json();
+            return sampleList;
+        }
+
+        function sampleChooser(samples) {
+            const box = document.getElementById("samplePicker");
+            if (!box) return;
+            box.innerHTML = samples.map((s, i) => `
+                <button type="button" class="text-button sample-pick" data-sample="${s.id}">
+                    ${s.name}
+                </button>`).join("");
+            box.querySelectorAll(".sample-pick").forEach((b) => {
+                b.addEventListener("click", async () => {
+                    const res = await fetch("/api/samples/" + b.dataset.sample);
+                    const data = await res.json();
+                    contractText.value = data.text;
+                    contractText.dispatchEvent(new Event("input"));
+                    const note = document.getElementById("sampleSource");
+                    if (note) {
+                        note.textContent = "출처 — " + (data.source || "출처 표기 없음");
+                        note.style.display = "";
+                    }
+                    contractText.focus();
+                });
+            });
+            box.style.display = "";
+        }
+
+        insertSampleButton.addEventListener("click", async () => {
+            try {
+                sampleChooser(await loadSamples());
+            } catch (e) {
+                window.alert("예시를 불러오지 못했습니다.");
+            }
+        });
+
+        function updateAnalyzeButton() {
+            const hasFile = fileInput.files.length > 0;
+            const hasText = contractText.value.trim().length >= 20;
+
+            analyzeButton.disabled =
+                activeInputType === "file" ? !hasFile : !hasText;
+        }
+
+        analyzeButton.addEventListener("click", async () => {
+            analyzeButton.disabled = true;
+
+            try {
+                let response;
+
+                // =========================
+                // PDF 업로드
+                // =========================
+                if (activeInputType === "file") {
+                    const file = fileInput.files[0];
+
+                    if (!file) {
+                        window.alert("PDF 파일을 선택해 주세요.");
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append("file", file);
+
+                    response = await fetch("/api/analyze-pdf", {
+                        method: "POST",
+                        body: formData
+                    });
+                }
+
+                // =========================
+                // 직접 입력
+                // =========================
+                else {
+                    const text = contractText.value.trim();
+
+                    if (!text) {
+                        window.alert("근로계약서 내용을 입력해 주세요.");
+                        return;
+                    }
+
+                    response = await fetch("/api/analyze", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            text: text,
+                            use_llm: false
+                        })
+                    });
+                }
+
+                const result = await response.json();
+
+                // 서버 검증 실패
+                if (!response.ok) {
+                    // 스캔본·사진 PDF는 서버가 글자를 뽑을 수 없다. 여기서 포기하지 않고
+                    // 브라우저 OCR 로 넘긴다. 파일이 서버로 가지 않으므로 개인정보 면에서도
+                    // 이쪽이 낫다. 읽은 글자는 바로 판정하지 않고 입력창에 채워
+                    // 사용자가 확인·수정한 뒤 직접 누르게 한다 — OCR 은 틀릴 수 있다.
+                    const ocrReasons = ["scanned", "empty", "broken_text_layer"];
+                    if (activeInputType === "file" && ocrReasons.includes(result.reason)) {
+                        const file = fileInput.files[0];
+                        analyzeButton.textContent = "글자를 읽는 중입니다...";
+                        try {
+                            const text = OCR.tidy(
+                                await OCR.scannedPdfToText(file, function (m) {
+                                    analyzeButton.textContent = m;
+                                })
+                            );
+                            if (text && text.trim().length >= 20) {
+                                contractText.value = text;
+                                // 직접 입력 탭으로 옮겨 사용자가 내용을 확인하게 한다
+                                const textTab = document.querySelector('[data-input-tab="text"]');
+                                if (textTab) textTab.click();
+                                window.alert(
+                                    (result.message || "") +
+                                    "\n\n글자를 읽어 입력창에 넣었습니다. "
+                                    + "잘못 읽은 부분이 없는지 확인한 뒤 다시 눌러주세요."
+                                );
+                                return;
+                            }
+                        } catch (e) {
+                            // OCR 실패는 아래 공통 안내로 떨어뜨린다
+                        } finally {
+                            analyzeButton.textContent = "계약서 점검하기";
+                        }
+                    }
+
+                    window.alert(
+                        result.message ||
+                        result.error ||
+                        "계약서를 확인할 수 없습니다."
+                    );
+
+                    return;
+                }
+
+                if (result.error) {
+                    window.alert(
+                        result.message ||
+                        "근로계약서 내용을 확인해 주세요."
+                    );
+
+                    return;
+                }
+
+                // 실제 분석 결과 저장
+                window.contractAnalysisResult = result;
+
+                // 분석할 수 없는 입력이면 결과 화면으로 보내지 않는다.
+                // 근로계약서가 아닌 문서에 "0건 · 안전"을 띄우면, 검사하지 않았다는
+                // 사실이 '문제 없음'으로 읽힌다. 법률 도구에서 가장 피해야 할 오해다.
+                const stop = Render.blocked(result);
+                if (stop) {
+                    window.alert(
+                        stop.title + "\n\n" + stop.message
+                        + (stop.disguise
+                            ? "\n\n다만 계약서 이름과 달리 사용자에게 종속된 정황이 보입니다. "
+                              + "실질이 근로계약이라면 근로기준법의 보호를 받을 수 있으니 "
+                              + "고용노동부 상담(1350)에 확인해 보세요."
+                            : "")
+                    );
+                    return;
+                }
+
+                // PDF이면 파일명 표시
+                if (activeInputType === "file" && result.filename) {
+                    resultFileName.textContent = result.filename;
+                }
+
+                // 판정 결과를 화면에 채운다. 이게 없으면 예시 화면이 그대로 뜬다.
+                Render.apply(result);
+
+                showPage("loading");
+                runLoadingAnimation();
+
+            } catch (error) {
+                console.error("계약서 분석 오류:", error);
+
+                window.alert(
+                    "서버와 통신하는 중 오류가 발생했습니다."
+                );
+            } finally {
+                analyzeButton.disabled = false;
+                updateAnalyzeButton();
+            }
+        });
+
+        function runLoadingAnimation() {
+            const steps = document.querySelectorAll(".pipeline-step");
+            const progressBar = document.getElementById("progressBar");
+            const progressPercent = document.getElementById("progressPercent");
+            const progressDescription =
+                document.getElementById("progressDescription");
+
+            const states = [
+                {
+                    percent: 18,
+                    description: "계약서 구조를 확인하고 있습니다."
+                },
+                {
+                    percent: 42,
+                    description: "주요 근로조건을 확인하고 있습니다."
+                },
+                {
+                    percent: 68,
+                    description: "관련 법령을 검색하고 있습니다."
+                },
+                {
+                    percent: 88,
+                    description: "인용문과 법령 원문을 대조하고 있습니다."
+                },
+                {
+                    percent: 100,
+                    description: "점검이 완료되었습니다."
+                }
+            ];
+
+            steps.forEach((step) => {
+                step.classList.remove("active", "complete");
+            });
+
+            let index = 0;
+
+            const applyState = () => {
+                const state = states[index];
+
+                progressBar.style.width = `${state.percent}%`;
+                progressPercent.textContent = `${state.percent}%`;
+                progressDescription.textContent = state.description;
+
+                steps.forEach((step, stepIndex) => {
+                    step.classList.toggle("complete", stepIndex < index);
+                    step.classList.toggle(
+                        "active",
+                        stepIndex === Math.min(index, steps.length - 1)
+                    );
+
+                    const marker = step.querySelector(".pipeline-marker");
+
+                    if (stepIndex < index) {
+                        marker.textContent = "✓";
+                    } else {
+                        marker.textContent = stepIndex + 1;
+                    }
+                });
+
+                if (index < states.length - 1) {
+                    index += 1;
+                    window.setTimeout(applyState, 650);
+                } else {
+                    window.setTimeout(() => {
+                        showPage("result");
+                    }, 500);
+                }
+            };
+
+            applyState();
+        }
+
+        document.querySelectorAll(".original-clause").forEach((clause) => {
+            clause.addEventListener("click", () => {
+                const targetId = clause.dataset.clauseTarget;
+                const targetCard = document.getElementById(targetId);
+
+                if (!targetCard) {
+                    return;
+                }
+
+                document.querySelectorAll(".original-clause").forEach((item) => {
+                    item.classList.remove("highlighted");
+                });
+
+                document.querySelectorAll(".analysis-card").forEach((card) => {
+                    card.classList.remove("selected");
+                });
+
+                clause.classList.add("highlighted");
+                targetCard.classList.add("selected");
+
+                targetCard.scrollIntoView({
+                    behavior: "smooth",
+                    block: "center"
+                });
+            });
+        });
+
+        const filterButtons = document.querySelectorAll(".filter-button");
+        const clauseSearch = document.getElementById("clauseSearch");
+        const analysisCards = document.querySelectorAll(".analysis-card");
+        const emptyResult = document.getElementById("emptyResult");
+
+        filterButtons.forEach((button) => {
+            button.addEventListener("click", () => {
+                currentFilter = button.dataset.filter;
+
+                filterButtons.forEach((item) => {
+                    item.classList.toggle("active", item === button);
+                });
+
+                applyResultFilter();
+            });
+        });
+
+        clauseSearch.addEventListener("input", applyResultFilter);
+
+        function applyResultFilter() {
+            const keyword = clauseSearch.value.trim().toLowerCase();
+            let visibleCount = 0;
+
+            analysisCards.forEach((card) => {
+                const matchesFilter =
+                    currentFilter === "all" ||
+                    card.dataset.status === currentFilter;
+
+                const matchesSearch =
+                    card.dataset.search.toLowerCase().includes(keyword);
+
+                const visible = matchesFilter && matchesSearch;
+
+                card.classList.toggle("hidden", !visible);
+
+                if (visible) {
+                    visibleCount += 1;
+                }
+            });
+
+            emptyResult.classList.toggle("hidden", visibleCount !== 0);
+        }
+
+        const verificationBanner =
+            document.getElementById("verificationBanner");
+
+        const verificationDrawer =
+            document.getElementById("verificationDrawer");
+
+        const drawerOverlay = document.getElementById("drawerOverlay");
+        const closeDrawerButton =
+            document.getElementById("closeDrawerButton");
+
+        function openDrawer() {
+            verificationDrawer.classList.add("open");
+            drawerOverlay.classList.add("open");
+            verificationDrawer.setAttribute("aria-hidden", "false");
+            document.body.classList.add("no-scroll");
+        }
+
+        function closeDrawer() {
+            verificationDrawer.classList.remove("open");
+            drawerOverlay.classList.remove("open");
+            verificationDrawer.setAttribute("aria-hidden", "true");
+            document.body.classList.remove("no-scroll");
+        }
+
+        verificationBanner.addEventListener("click", openDrawer);
+        closeDrawerButton.addEventListener("click", closeDrawer);
+        drawerOverlay.addEventListener("click", closeDrawer);
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                closeDrawer();
+            }
+        });
+        const contactModal = document.getElementById("contactModal");
+        const openContactModalButton =
+            document.getElementById("openContactModal");
+        const closeContactModalButton =
+            document.getElementById("closeContactModal");
+        const cancelContactModalButton =
+            document.getElementById("cancelContactModal");
+        const contactForm = document.getElementById("contactForm");
+        const contactMessage =
+            contactForm.querySelector('textarea[name="message"]');
+        const contactMessageCount =
+            document.getElementById("contactMessageCount");
+        const contactFormMessage =
+            document.getElementById("contactFormMessage");
+
+        function openContactModal() {
+            contactModal.classList.add("open");
+            contactModal.setAttribute("aria-hidden", "false");
+            document.body.classList.add("modal-open");
+
+            window.setTimeout(() => {
+                contactForm.querySelector('input[name="name"]').focus();
+            }, 100);
+        }
+
+        function closeContactModal() {
+            contactModal.classList.remove("open");
+            contactModal.setAttribute("aria-hidden", "true");
+            document.body.classList.remove("modal-open");
+        }
+
+        openContactModalButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            openContactModal();
+        });
+
+        closeContactModalButton.addEventListener(
+            "click",
+            closeContactModal
+        );
+
+        cancelContactModalButton.addEventListener(
+            "click",
+            closeContactModal
+        );
+
+        contactModal.addEventListener("click", (event) => {
+            if (event.target === contactModal) {
+                closeContactModal();
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (
+                event.key === "Escape" &&
+                contactModal.classList.contains("open")
+            ) {
+                closeContactModal();
+            }
+        });
+
+        contactMessage.addEventListener("input", () => {
+            contactMessageCount.textContent =
+                contactMessage.value.length.toLocaleString();
+        });
+
+        contactForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const submitButton =
+                contactForm.querySelector(".contact-submit-button");
+
+            const formData = new FormData(contactForm);
+
+            const requestData = {
+                name: formData.get("name"),
+                email: formData.get("email"),
+                category: formData.get("category"),
+                message: formData.get("message"),
+                privacyAgreement:
+                    formData.get("privacyAgreement") === "on"
+            };
+
+            submitButton.disabled = true;
+            submitButton.textContent = "전송 중...";
+
+            contactFormMessage.className = "contact-form-message";
+            contactFormMessage.textContent = "";
+
+            try {
+                const response = await fetch("/api/contact", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        result.message || "메일 발송에 실패했습니다."
+                    );
+                }
+
+                contactFormMessage.textContent = result.message;
+                contactFormMessage.className =
+                    "contact-form-message success";
+
+                contactForm.reset();
+                contactMessageCount.textContent = "0";
+
+                window.setTimeout(() => {
+                    closeContactModal();
+
+                    contactFormMessage.className =
+                        "contact-form-message";
+                    contactFormMessage.textContent = "";
+                }, 1800);
+
+            } catch (error) {
+                contactFormMessage.textContent = error.message;
+                contactFormMessage.className =
+                    "contact-form-message error";
+
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = "문의 보내기";
+            }
+        });
+        const serviceModal =
+            document.getElementById("serviceModal");
+
+        const openServiceModalButton =
+            document.getElementById("openServiceModal");
+
+        const closeServiceModalButton =
+            document.getElementById("closeServiceModal");
+
+        function openServiceModal() {
+            serviceModal.hidden = false;
+            serviceModal.classList.add("open");
+            serviceModal.setAttribute("aria-hidden", "false");
+            document.body.classList.add("modal-open");
+        }
+
+        function closeServiceModal() {
+            serviceModal.classList.remove("open");
+            serviceModal.hidden = true;
+            serviceModal.setAttribute("aria-hidden", "true");
+            document.body.classList.remove("modal-open");
+        }
+
+        openServiceModalButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            openServiceModal();
+        });
+
+        closeServiceModalButton.addEventListener(
+            "click",
+            closeServiceModal
+        );
+
+        serviceModal.addEventListener("click", (event) => {
+            if (event.target === serviceModal) {
+                closeServiceModal();
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (
+                event.key === "Escape" &&
+                serviceModal.classList.contains("open")
+            ) {
+                closeServiceModal();
+            }
+        });
+    </script>
 </body>
 </html>
