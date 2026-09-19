@@ -167,6 +167,30 @@ def download_review():
     )
 
 
+MAX_UPLOAD_MB = 8
+app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
+
+
+@app.post("/api/extract")
+def api_extract():
+    """업로드된 PDF에서 텍스트만 뽑아 돌려준다. 프론트가 입력창에 채워 넣는 용도."""
+    import io
+
+    from core.segment import pdf_diagnosis
+
+    f = request.files.get("file")
+    if f is None or not f.filename:
+        return jsonify(ok=False, message="파일이 없습니다."), 400
+    if not f.filename.lower().endswith(".pdf"):
+        return jsonify(
+            ok=False,
+            reason="not_pdf",
+            message="PDF 파일만 읽을 수 있습니다. 이미지나 캡처 화면은 글자를 직접 읽을 수 없으니 "
+                    "계약서 내용을 복사해서 붙여넣어 주세요.",
+        ), 400
+    return jsonify(pdf_diagnosis(io.BytesIO(f.read())))
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     idx = get_index()
@@ -179,10 +203,32 @@ def index():
         "result": None,
         "samples": _samples_listing(),
         "sample_texts": _sample_texts(),
+        "upload_message": None,
+        "upload_ok": None,
     }
     if request.method == "POST":
         text = (request.form.get("text") or "").strip()
         use_llm = request.form.get("use_llm") == "on"
+
+        # PDF가 올라왔으면 거기서 글자를 뽑아 텍스트 입력을 대신한다
+        f = request.files.get("file")
+        if f is not None and f.filename:
+            import io
+
+            from core.segment import pdf_diagnosis
+
+            if not f.filename.lower().endswith(".pdf"):
+                ctx["upload_message"] = (
+                    "PDF 파일만 읽을 수 있습니다. 이미지나 캡처 화면은 글자를 직접 읽을 수 없으니 "
+                    "계약서 내용을 복사해서 아래 입력창에 붙여넣어 주세요."
+                )
+            else:
+                diag = pdf_diagnosis(io.BytesIO(f.read()))
+                ctx["upload_message"] = diag["message"]
+                ctx["upload_ok"] = diag["ok"]
+                if diag["ok"]:
+                    text = diag["text"]
+
         ctx["text"] = text
         if text:
             ctx["result"] = build_payload(text, use_llm)

@@ -80,11 +80,50 @@ def _fallback(text: str) -> list[Clause]:
 
 
 def extract_pdf_text(file_obj) -> str:
-    """텍스트 레이어가 있는 PDF만 지원. 스캔본은 MVP 범위에서 제외한다."""
+    """PDF에서 텍스트를 뽑는다. 경로 문자열도, 파일 객체도 받는다.
+
+    텍스트 레이어가 있는 PDF만 읽힌다. 스캔본이나 사진을 PDF로 만든 것은
+    글자가 이미지이므로 빈 문자열이 나온다. 그 경우 호출부가 안내해야 한다.
+    """
     import pdfplumber
 
     pages = []
     with pdfplumber.open(file_obj) as pdf:
         for page in pdf.pages:
             pages.append(page.extract_text() or "")
-    return "\n".join(pages)
+    return "\n".join(pages).strip()
+
+
+def pdf_diagnosis(file_obj) -> dict:
+    """PDF를 읽고 무엇이 문제인지까지 판별한다.
+
+    사용자에게 '실패했습니다'만 던지면 무엇을 해야 할지 알 수 없다.
+    스캔본인지, 암호가 걸렸는지, 그냥 빈 파일인지를 구분해서 알려준다.
+    """
+    import pdfplumber
+
+    try:
+        with pdfplumber.open(file_obj) as pdf:
+            pages = len(pdf.pages)
+            text = "\n".join((p.extract_text() or "") for p in pdf.pages).strip()
+            images = sum(len(p.images) for p in pdf.pages)
+    except Exception as e:
+        msg = str(e).lower()
+        if "password" in msg or "encrypt" in msg:
+            return {"ok": False, "text": "", "reason": "encrypted",
+                    "message": "암호가 걸린 PDF입니다. 암호를 푼 뒤 다시 올려주세요."}
+        return {"ok": False, "text": "", "reason": "unreadable",
+                "message": f"PDF를 읽지 못했습니다. ({type(e).__name__})"}
+
+    if len(text) >= 50:
+        return {"ok": True, "text": text, "reason": "ok", "pages": pages,
+                "message": f"{pages}쪽에서 {len(text):,}자를 읽었습니다."}
+
+    if images > 0:
+        return {"ok": False, "text": text, "reason": "scanned", "pages": pages,
+                "message": "글자가 이미지로 들어 있는 스캔본입니다. "
+                           "이 서비스는 문서에서 글자를 직접 읽으므로 스캔본은 인식하지 못합니다. "
+                           "계약서 내용을 복사해서 아래 입력창에 붙여넣어 주세요."}
+
+    return {"ok": False, "text": text, "reason": "empty", "pages": pages,
+            "message": "PDF에서 글자를 찾지 못했습니다. 내용을 복사해서 붙여넣어 주세요."}
