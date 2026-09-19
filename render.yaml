@@ -1,0 +1,19 @@
+# Render 배포 설정.
+# https://render.com → New → Blueprint → 이 리포 연결하면 자동으로 읽는다.
+#
+# 핵심: buildCommand 에서 분류기를 '그 서버에서' 학습시킨다.
+# 로컬에서 만든 .joblib 를 올리면 sklearn 버전이 달라 로드에 실패할 수 있다.
+# 학습은 10초면 끝나므로 빌드 때마다 새로 만드는 편이 안전하다.
+services:
+  - type: web
+    name: contract-guard
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt && python scripts/train_classifier.py"
+    startCommand: "gunicorn server:app --bind 0.0.0.0:$PORT --timeout 120 --workers 1"
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: LLM_PROVIDER
+        value: dummy

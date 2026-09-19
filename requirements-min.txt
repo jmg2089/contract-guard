@@ -1,0 +1,12 @@
+# 최소 실행 세트 — 순수 파이썬 패키지만. 어떤 파이썬 버전에서도 컴파일 없이 설치된다.
+# 평가 스크립트와 Flask 서버(dummy 모드)를 돌리는 데 이것만 있으면 된다.
+#
+#   python -m pip install -r requirements-min.txt
+#
+# LLM 붙이기: openai 추가 설치. PDF 업로드: pdfplumber 추가 설치.
+# 둘 다 파이썬 3.11~3.12 에서 설치하는 것이 안전하다.
+
+flask==3.0.3
+flask-cors==5.0.0
+rank-bm25==0.2.2
+python-dotenv==1.0.1
