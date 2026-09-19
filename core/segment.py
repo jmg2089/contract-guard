@@ -22,13 +22,57 @@ def _clean(text: str) -> str:
     return text.strip()
 
 
+# 서명란의 시작. 여기부터는 계약 조항이 아니라 당사자 표기다.
+#
+# 이걸 나누지 않으면 마지막 조항이 서명란을 통째로 삼킨다. 실제로 그랬다.
+# 위약금 조항을 보여주는데 인용문에 사업체명·주소·연락처가 줄줄이 딸려 나왔다.
+# 판정 자체는 맞지만 화면에서 "이 조항이 문제입니다" 하고 서명란을 들이미는 꼴이라
+# 무엇이 문제인지 알아볼 수 없다.
+SIGNATURE_RE = re.compile(
+    r"^[ \t]*(?:"
+    r"[(（]\s*(?:사업주|사용자|근로자|갑|을)\s*[)）]"          # (사업주) 사업체명 : ...
+    r"|(?:사업주|사용자|근로자)\s*[:：]"                       # 사업주 : ...
+    r"|\d{4}\s*년\s*\d{1,2}\s*월\s*\d{1,2}\s*일\s*$"          # 날짜만 있는 줄
+    r")",
+    re.MULTILINE,
+)
+
+# 문서 앞부분의 날짜(계약기간 등)를 서명란으로 오인하지 않도록, 뒤쪽에서만 찾는다.
+SIGNATURE_MIN_RATIO = 0.45
+
+
+def _signature_start(text: str) -> int | None:
+    limit = int(len(text) * SIGNATURE_MIN_RATIO)
+    for m in SIGNATURE_RE.finditer(text):
+        if m.start() >= limit:
+            return m.start()
+    return None
+
+
 def segment(text: str) -> list[Clause]:
     text = _clean(text)
-    matches = list(ARTICLE_RE.finditer(text))
 
-    if len(matches) >= 2:
-        return _from_matches(text, matches)
-    return _fallback(text)
+    # 서명란을 먼저 떼어 낸다. 조항과 섞이면 인용문이 읽을 수 없게 된다.
+    sig = _signature_start(text)
+    body = text[:sig] if sig is not None else text
+
+    matches = list(ARTICLE_RE.finditer(body))
+    clauses = _from_matches(body, matches) if len(matches) >= 2 else _fallback(body)
+
+    if sig is not None:
+        tail = text[sig:].strip()
+        if len(tail) >= MIN_CLAUSE_LEN:
+            clauses.append(
+                Clause(
+                    id=f"c{len(clauses) + 1}",
+                    article_no=None,
+                    title="서명란",
+                    text=tail,
+                    start=sig,
+                    end=len(text),
+                )
+            )
+    return clauses
 
 
 def _from_matches(text: str, matches) -> list[Clause]:

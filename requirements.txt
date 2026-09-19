@@ -25,5 +25,12 @@ pdfplumber>=0.11
 # 다른 쪽이 읽는 경우가 있다. core/pdftext.py 가 둘을 모두 돌려 나은 쪽을 고른다.
 pypdf>=4.0
 
+# 마스킹 미리보기용. 둘 다 pdfplumber 가 이미 끌고 오지만 여기서 직접 import 하므로
+# 명시해 둔다. 남의 의존성에 얹혀 쓰다가 그쪽이 버전을 올리면 조용히 깨진다.
+#   pypdfium2 : PDF 페이지를 이미지로 렌더 (BSD/Apache. AGPL 인 PyMuPDF 를 피한 이유)
+#   pillow    : 렌더된 이미지 위에 검은 박스를 그린다
+pypdfium2>=4.0
+pillow>=10.0
+
 # 샘플 PDF 생성용(개발 전용). 배포에는 필요 없지만 빌드에 부담이 없어 함께 둔다.
 reportlab>=4.0

@@ -215,6 +215,34 @@ def api_extract():
     return jsonify(pdf_diagnosis(io.BytesIO(f.read())))
 
 
+@app.post("/api/mask-preview")
+def api_mask_preview():
+    """업로드된 PDF에 민감정보를 덮어 가린 미리보기 이미지를 돌려준다.
+
+    텍스트 마스킹만 있을 때는 사용자가 "가렸습니다"라는 문장을 믿어야 했다.
+    자동 인식이 100%가 아닌데 확인할 방법이 없으면 그 약속은 검증되지 않는다.
+    문서 모양 그대로 검은 박스가 덮인 그림을 보여주면, 빠진 곳을 사용자가 찾아낼 수 있다.
+
+    파일은 저장하지 않는다. 메모리에서 이미지를 만들어 응답에 실어 보내고 끝난다.
+    """
+    import io
+
+    from core.pdf_redact import redact_preview
+
+    f = request.files.get("file")
+    if f is None or not f.filename:
+        return jsonify(ok=False, message="파일이 없습니다."), 400
+    if not f.filename.lower().endswith(".pdf"):
+        return jsonify(ok=False, reason="not_pdf",
+                       message="PDF만 미리보기를 만들 수 있습니다."), 400
+
+    data = f.read()
+    if len(data) > 20 * 1024 * 1024:
+        return jsonify(ok=False, reason="too_large",
+                       message="20MB 이하 PDF만 미리보기를 만듭니다."), 400
+    return jsonify(redact_preview(data))
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     idx = get_index()
