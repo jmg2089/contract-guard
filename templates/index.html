@@ -382,8 +382,75 @@
                     {# 업로드한 PDF에서 무엇이 가려졌는지 눈으로 확인하는 자리 #}
                     <div id="maskPreview" class="mask-preview" style="display:none">
                         <strong>민감정보 마스킹 미리보기</strong>
+
                         <div id="maskPreviewBody" class="mask-preview-body"></div>
                         <p id="maskPreviewNote" class="mask-preview-note"></p>
+
+                        {# 자동 인식이 놓친 곳을 사람이 직접 덮을 수 있게 한다.
+                           "완전하지 않습니다"라고만 적어 두면 사용자가 할 수 있는 일이 없다. #}
+                        <div class="redact-tools">
+                            <div class="redact-hint">
+                                <strong>빠진 곳이 있나요? 그림 위를 끌어서 직접 가리세요.</strong>
+                                <span>마우스로 드래그하면 검은 칠이 됩니다. 휴대폰에서는 손가락으로 쓸어주세요.</span>
+                            </div>
+
+                            <div class="redact-buttons">
+                                <button type="button" id="redactUndo" class="text-button">
+                                    한 칸 되돌리기
+                                </button>
+                                <button type="button" id="redactReset" class="text-button">
+                                    처음으로
+                                </button>
+                                <button type="button" id="redactDownload" class="text-button">
+                                    가린 그림 내려받기
+                                </button>
+                            </div>
+                        </div>
+
+                        {# 무엇을 가려야 하는지 알려준다. 모르면 가릴 수가 없다. #}
+                        <details class="redact-guide">
+                            <summary>어떤 부분을 가려야 하나요?</summary>
+
+                            <p class="redact-guide-lead">
+                                <b>점검에 쓰이지 않는 정보</b>만 가리면 됩니다.
+                                임금·근로시간·계약기간은 판정에 필요하니 <b>그대로 두세요.</b>
+                            </p>
+
+                            <div class="redact-guide-cols">
+                                <div>
+                                    <span class="redact-tag hide">가려주세요</span>
+                                    <ul>
+                                        <li>이름 (근로자·대표자)</li>
+                                        <li>주민등록번호 · 외국인등록번호</li>
+                                        <li>생년월일</li>
+                                        <li>주소 (집 주소, 사업장 소재지)</li>
+                                        <li>전화번호 · 이메일</li>
+                                        <li>계좌번호 · 카드번호</li>
+                                        <li>사업자등록번호 · 회사 이름</li>
+                                        <li>서명 · 도장 이미지</li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <span class="redact-tag keep">그대로 두세요</span>
+                                    <ul>
+                                        <li>임금 · 시급 · 월급 액수</li>
+                                        <li>근로시간 · 휴게시간</li>
+                                        <li>계약기간 · 수습기간</li>
+                                        <li>휴일 · 연차 관련 내용</li>
+                                        <li>업무 내용 · 근무 장소</li>
+                                        <li>위약금 · 손해배상 조항</li>
+                                        <li>조항 번호와 제목</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <p class="redact-guide-warn">
+                                여기서 칠한 것은 <b>이 그림에만</b> 적용됩니다.
+                                점검은 아래 입력창의 글자로 하므로, 놓친 개인정보가 있으면
+                                <b>입력창에서도 지워 주세요.</b>
+                            </p>
+                        </details>
                     </div>
 
                     <div class="privacy-notice">
@@ -1212,6 +1279,7 @@
 
     <script src="{{ url_for('static', filename='js/render.js') }}"></script>
     <script src="{{ url_for('static', filename='js/mask.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/redact.js') }}"></script>
     <script src="{{ url_for('static', filename='js/ocr.js') }}"></script>
     <script>
         const pages = {
@@ -1357,7 +1425,30 @@
             });
             noteEl.textContent = note || "";
             box.style.display = "";
+
+            // 그림을 캔버스로 바꿔 직접 칠할 수 있게 한다.
+            // 기계가 놓친 자리를 사람이 덮을 수 있어야 한다.
+            if (typeof Redact !== "undefined") {
+                Redact.enableAll(body, function (n) {
+                    const extra = document.getElementById("redactCount");
+                    if (extra) {
+                        extra.textContent = n ? `직접 가린 곳 ${n}군데` : "";
+                    }
+                });
+            }
         }
+
+        // 칠하기 도구 버튼
+        (function () {
+            const body = document.getElementById("maskPreviewBody");
+            const bind = (id, fn) => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener("click", fn);
+            };
+            bind("redactUndo", () => Redact.undoAll(body));
+            bind("redactReset", () => Redact.resetAll(body));
+            bind("redactDownload", () => Redact.download(body));
+        })();
 
         /* 글자가 들어 있는 PDF의 마스킹 미리보기.
            서버가 좌표를 알고 있어 정확하게 덮을 수 있다.

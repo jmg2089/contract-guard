@@ -3071,3 +3071,124 @@ a.button-secondary:visited {
 
 .upload-guide li:first-child { border-left: 3px solid #1f6f43; }
 .upload-guide li:last-child  { border-left: 3px solid #cbd5e1; }
+
+/* 직접 칠하기 도구 */
+.redact-canvas {
+    display: block;
+    max-height: 320px;
+    width: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #fff;
+    cursor: crosshair;
+    touch-action: none;
+}
+
+.redact-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.redact-hint strong {
+    display: block;
+    font-size: 13px;
+    color: #172033;
+}
+
+.redact-hint span {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.redact-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.redact-buttons .text-button {
+    border: 1px solid #d7dee8;
+    background: #fff;
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 12.5px;
+    color: #33415c;
+    cursor: pointer;
+}
+
+.redact-buttons .text-button:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+}
+
+/* 무엇을 가려야 하는지 안내 */
+.redact-guide {
+    margin-top: 12px;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 12px;
+}
+
+.redact-guide summary {
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: #33415c;
+}
+
+.redact-guide-lead {
+    margin: 10px 0 14px;
+    font-size: 13px;
+    color: #475569;
+    line-height: 1.7;
+}
+
+.redact-guide-cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+}
+
+.redact-tag {
+    display: inline-block;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    margin-bottom: 8px;
+}
+
+.redact-tag.hide { background: #fdecea; color: #b3261e; }
+.redact-tag.keep { background: #e9f6ee; color: #1f6f43; }
+
+.redact-guide-cols ul {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.redact-guide-cols li {
+    font-size: 12.5px;
+    color: #475569;
+    line-height: 1.85;
+}
+
+.redact-guide-warn {
+    margin: 14px 0 0;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 12.5px;
+    color: #7c2d12;
+    line-height: 1.7;
+}
+
+@media (max-width: 640px) {
+    .redact-tools { flex-direction: column; align-items: flex-start; }
+    .redact-canvas { max-height: 240px; }
+}
