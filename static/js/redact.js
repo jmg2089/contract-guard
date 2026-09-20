@@ -98,6 +98,15 @@ const Redact = (() => {
       canvas.addEventListener("touchmove", move, { passive: false });
       canvas.addEventListener("touchend", end);
 
+      // 작은 그림에서는 정확히 칠하기 어렵다. 누르면 크게 열어 준다.
+      // 드래그로 칠한 직후에 열리면 방해되므로, 끌지 않은 클릭만 확대로 본다.
+      let moved = false;
+      canvas.addEventListener("mousedown", () => { moved = false; });
+      canvas.addEventListener("mousemove", () => { moved = true; });
+      canvas.addEventListener("click", () => {
+        if (!moved && !canvas.classList.contains("redact-canvas-large")) open(figure);
+      });
+
       img.replaceWith(canvas);
       figure.dataset.redactReady = "1";
 
@@ -155,5 +164,83 @@ const Redact = (() => {
     });
   }
 
-  return { enableAll, undoAll, resetAll, download };
+  /* ── 크게 보고 칠하기 ─────────────────────────────────────────────────
+   *
+   * 미리보기는 목록에 여러 장을 늘어놓느라 작다. 그 크기로는 주민등록번호가
+   * 어디 있는지 보이지도 않고, 정확히 칠할 수도 없다.
+   *
+   * 그림을 누르면 화면 가득 키운다. 복사본을 만들어 띄우면 칠한 내용을 다시
+   * 되돌려 맞춰야 하는데, 그 동기화가 어긋나면 "가린 줄 알았는데 안 가려진"
+   * 최악의 상황이 된다. 그래서 복사하지 않고 **캔버스를 통째로 옮긴다.**
+   * 닫을 때 원래 자리로 돌려놓는다. 같은 캔버스이므로 어긋날 수가 없다.
+   */
+  let overlay = null;
+
+  function buildOverlay() {
+    if (overlay) return overlay;
+
+    overlay = document.createElement("div");
+    overlay.className = "redact-modal";
+    overlay.innerHTML = `
+      <div class="redact-modal-bar">
+        <span class="redact-modal-title">가릴 곳을 끌어서 칠하세요</span>
+        <div class="redact-modal-actions">
+          <button type="button" data-act="undo">한 칸 되돌리기</button>
+          <button type="button" data-act="reset">처음으로</button>
+          <button type="button" data-act="close">완료</button>
+        </div>
+      </div>
+      <div class="redact-modal-stage"></div>
+      <p class="redact-modal-hint">
+        점검에 쓰이는 임금·근로시간·계약기간은 가리지 마세요.
+        여기서 칠한 것은 이 그림에만 적용되며, 입력창의 글자는 따로 지워야 합니다.
+      </p>`;
+
+    overlay.addEventListener("click", (ev) => {
+      const act = ev.target.dataset && ev.target.dataset.act;
+      if (act === "close" || ev.target === overlay) close();
+      else if (act === "undo" && overlay._figure) overlay._figure._redact.undo();
+      else if (act === "reset" && overlay._figure) overlay._figure._redact.reset();
+    });
+
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && overlay.classList.contains("on")) close();
+    });
+
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  function open(figure) {
+    const box = buildOverlay();
+    const canvas = figure.querySelector("canvas");
+    if (!canvas) return;
+
+    // 원래 자리를 표시해 두고 캔버스를 옮긴다 (복사하지 않는다)
+    const marker = document.createElement("span");
+    marker.className = "redact-slot";
+    canvas.replaceWith(marker);
+
+    box.querySelector(".redact-modal-stage").appendChild(canvas);
+    canvas.classList.add("redact-canvas-large");
+    box._figure = figure;
+    box._marker = marker;
+    box.classList.add("on");
+    document.body.style.overflow = "hidden";
+  }
+
+  function close() {
+    if (!overlay || !overlay.classList.contains("on")) return;
+    const canvas = overlay.querySelector("canvas");
+    if (canvas && overlay._marker) {
+      canvas.classList.remove("redact-canvas-large");
+      overlay._marker.replaceWith(canvas);
+    }
+    overlay.classList.remove("on");
+    overlay._figure = null;
+    overlay._marker = null;
+    document.body.style.overflow = "";
+  }
+
+  return { enableAll, undoAll, resetAll, download, open, close };
 })();

@@ -3163,8 +3163,16 @@ a.button-secondary:visited {
     margin-bottom: 8px;
 }
 
+.redact-tag.auto { background: #eaf1fd; color: #1a4fa0; }
 .redact-tag.hide { background: #fdecea; color: #b3261e; }
 .redact-tag.keep { background: #e9f6ee; color: #1f6f43; }
+
+.redact-col-note {
+    margin: 8px 0 0;
+    font-size: 11.5px;
+    color: #7a8699;
+    line-height: 1.65;
+}
 
 .redact-guide-cols ul {
     margin: 0;
@@ -3188,7 +3196,99 @@ a.button-secondary:visited {
     line-height: 1.7;
 }
 
+/* 크게 보고 칠하기 ── 캔버스를 통째로 옮겨 오므로, 여기 규칙은 '크기'만 바꾼다.
+   칠한 내용은 같은 캔버스에 그대로 남아 있어 닫을 때 어긋날 일이 없다. */
+.redact-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(12, 18, 28, 0.88);
+    padding: 16px;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.redact-modal.on { display: flex; }
+
+.redact-modal-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex: 0 0 auto;
+}
+
+.redact-modal-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+}
+
+.redact-modal-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.redact-modal-actions button {
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border-radius: 8px;
+    padding: 7px 13px;
+    font-size: 12.5px;
+    cursor: pointer;
+}
+
+.redact-modal-actions button:hover {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.redact-modal-actions button[data-act="close"] {
+    background: #fff;
+    color: #172033;
+    font-weight: 700;
+    border-color: #fff;
+}
+
+.redact-modal-stage {
+    flex: 1 1 auto;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    background: #f3f5f9;
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.redact-canvas-large {
+    max-height: none;
+    width: 100%;
+    max-width: 1100px;
+    height: auto;
+    cursor: crosshair;
+    touch-action: none;
+}
+
+.redact-modal-hint {
+    flex: 0 0 auto;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.7;
+    color: #e2e8f0;
+    text-align: center;
+}
+
+/* 캔버스가 자리를 비운 동안 원래 위치를 잡아 두는 표시자 */
+.redact-slot { display: none; }
+
 @media (max-width: 640px) {
     .redact-tools { flex-direction: column; align-items: flex-start; }
     .redact-canvas { max-height: 240px; }
+    .redact-modal { padding: 10px; }
+    .redact-modal-bar { flex-direction: column; align-items: stretch; }
+    .redact-modal-stage { padding: 6px; }
 }

@@ -391,7 +391,7 @@
                         <div class="redact-tools">
                             <div class="redact-hint">
                                 <strong>빠진 곳이 있나요? 그림 위를 끌어서 직접 가리세요.</strong>
-                                <span>마우스로 드래그하면 검은 칠이 됩니다. 휴대폰에서는 손가락으로 쓸어주세요.</span>
+                                <span>그림을 <b>누르면 크게</b> 열립니다. 드래그하면 검은 칠이 됩니다.</span>
                             </div>
 
                             <div class="redact-buttons">
@@ -418,17 +418,35 @@
 
                             <div class="redact-guide-cols">
                                 <div>
-                                    <span class="redact-tag hide">가려주세요</span>
+                                    <span class="redact-tag auto">자동으로 가립니다</span>
                                     <ul>
-                                        <li>이름 (근로자·대표자)</li>
-                                        <li>주민등록번호 · 외국인등록번호</li>
+                                        <li>이름 (근로자 · 대표자)</li>
+                                        <li>회사명 · 사업체명 · 상호</li>
                                         <li>생년월일</li>
-                                        <li>주소 (집 주소, 사업장 소재지)</li>
+                                        <li>주소 · 소재지</li>
                                         <li>전화번호 · 이메일</li>
+                                        <li>소속 · 부서</li>
+                                        <li>주민등록번호 · 외국인등록번호<br>여권번호 · 사업자등록번호</li>
                                         <li>계좌번호 · 카드번호</li>
-                                        <li>사업자등록번호 · 회사 이름</li>
-                                        <li>서명 · 도장 이미지</li>
                                     </ul>
+                                    <p class="redact-col-note">
+                                        &lsquo;성명 :&rsquo;, &lsquo;연락처 :&rsquo; 처럼 항목 이름이 붙은 값을 찾습니다.
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <span class="redact-tag hide">직접 가려주세요</span>
+                                    <ul>
+                                        <li>서명 · 도장 이미지</li>
+                                        <li>손글씨로 적은 개인정보</li>
+                                        <li>사진 · 신분증 사본</li>
+                                        <li>항목 이름 없이 적힌 이름이나 번호</li>
+                                        <li>사진이 흐려 잘못 읽힌 부분</li>
+                                    </ul>
+                                    <p class="redact-col-note">
+                                        기계가 글자로 읽지 못하는 것들입니다.
+                                        그림을 눌러 크게 연 뒤 칠해 주세요.
+                                    </p>
                                 </div>
 
                                 <div>
@@ -442,6 +460,9 @@
                                         <li>위약금 · 손해배상 조항</li>
                                         <li>조항 번호와 제목</li>
                                     </ul>
+                                    <p class="redact-col-note">
+                                        가리면 위반을 찾지 못합니다.
+                                    </p>
                                 </div>
                             </div>
 
