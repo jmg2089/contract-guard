@@ -3019,3 +3019,55 @@ a.button-secondary,
 a.button-secondary:visited {
     color: inherit;
 }
+
+/* 업로드 안내 배너 — alert 창 대신 화면 안에서 알린다 */
+.upload-notice {
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 18px;
+}
+
+.upload-notice strong {
+    display: block;
+    font-size: 14px;
+    color: #1e3a8a;
+    margin-bottom: 6px;
+}
+
+.upload-notice p {
+    margin: 0;
+    font-size: 13.5px;
+    color: #334155;
+    line-height: 1.7;
+}
+
+/* 업로드 전 안내 — 무엇이 잘 되는지 미리 알린다 */
+.upload-guide {
+    list-style: none;
+    margin: 14px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+}
+
+.upload-guide li {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    color: #475569;
+    line-height: 1.65;
+}
+
+.upload-guide strong {
+    display: block;
+    color: #172033;
+    font-size: 13px;
+    margin-bottom: 3px;
+}
+
+.upload-guide li:first-child { border-left: 3px solid #1f6f43; }
+.upload-guide li:last-child  { border-left: 3px solid #cbd5e1; }

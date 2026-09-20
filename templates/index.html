@@ -307,6 +307,20 @@
                             <span class="file-condition">PDF · 최대 10MB</span>
                         </label>
 
+                        {# 무엇이 잘 되고 무엇이 덜 되는지 올리기 전에 알린다.
+                           올린 뒤에 "인식하지 못합니다"라고 하면 고장으로 읽힌다. #}
+                        <ul class="upload-guide">
+                            <li>
+                                <strong>가장 정확합니다</strong>
+                                워드·한글에서 저장한 PDF, 메일로 받은 계약서 파일
+                            </li>
+                            <li>
+                                <strong>읽어 드리지만 확인이 필요합니다</strong>
+                                사진으로 찍은 계약서, 스캔본, 카카오톡으로 받은 이미지 PDF
+                                &mdash; 글자를 읽어 입력창에 채워 드리면 틀린 곳을 고쳐 주세요
+                            </li>
+                        </ul>
+
                         <div id="selectedFile" class="selected-file hidden">
                             <div class="file-icon">PDF</div>
 
@@ -356,6 +370,13 @@
 
                         <div id="samplePicker" class="sample-picker" style="display:none"></div>
                         <div id="sampleSource" class="sample-source" style="display:none"></div>
+                    </div>
+
+                    {# 사진·스캔본 처리 결과를 알리는 자리.
+                       브라우저 alert 창은 오류처럼 보여서 화면 안에 넣는다. #}
+                    <div id="uploadNotice" class="upload-notice" style="display:none">
+                        <strong id="uploadNoticeTitle"></strong>
+                        <p id="uploadNoticeBody"></p>
                     </div>
 
                     {# 업로드한 PDF에서 무엇이 가려졌는지 눈으로 확인하는 자리 #}
@@ -1305,109 +1326,70 @@
             maskPreview(file);
         }
 
-        /* 마스킹 미리보기.
-           서버가 PDF 페이지를 그림으로 그린 뒤 개인정보 자리에 검은 박스를 덮어 돌려준다.
-           파일은 저장되지 않고 응답을 만든 뒤 메모리에서 사라진다.
-           부가 기능이므로 실패해도 점검 흐름을 막지 않는다. */
-        async function maskPreview(file) {
+        /* 화면 안 안내 배너. alert 창은 오류처럼 보이고 흐름을 끊는다. */
+        function showUploadNotice(title, body) {
+            const box = document.getElementById("uploadNotice");
+            if (!box) { window.alert(title + "\n\n" + body); return; }
+            document.getElementById("uploadNoticeTitle").textContent = title;
+            document.getElementById("uploadNoticeBody").textContent = body;
+            box.style.display = "";
+            box.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+
+        /* 가려진 그림을 화면에 붙인다. 서버가 만든 것과 브라우저가 만든 것 모두 이 함수를 쓴다. */
+        function showMaskPreview(pages, note) {
             const box = document.getElementById("maskPreview");
             const body = document.getElementById("maskPreviewBody");
-            const note = document.getElementById("maskPreviewNote");
+            const noteEl = document.getElementById("maskPreviewNote");
             if (!box) return;
 
-            try {
-                body.innerHTML = '<p class="mask-preview-note">미리보기를 만드는 중입니다...</p>';
-                box.style.display = "";
+            body.innerHTML = "";
+            pages.forEach((pg) => {
+                const fig = document.createElement("figure");
+                const img = document.createElement("img");
+                img.src = pg.image;
+                img.alt = pg.page + "쪽 마스킹 미리보기";
+                const cap = document.createElement("figcaption");
+                cap.textContent = pg.page + "쪽";
+                fig.appendChild(img);
+                fig.appendChild(cap);
+                body.appendChild(fig);
+            });
+            noteEl.textContent = note || "";
+            box.style.display = "";
+        }
 
+        /* 글자가 들어 있는 PDF의 마스킹 미리보기.
+           서버가 좌표를 알고 있어 정확하게 덮을 수 있다.
+           사진·스캔본은 OCR 좌표로 브라우저가 덮는다(위 분기 참고). */
+        async function maskPreview(file) {
+            try {
                 const fd = new FormData();
                 fd.append("file", file);
                 const res = await fetch("/api/mask-preview", { method: "POST", body: fd });
                 const data = await res.json();
 
-                if (!data.ok || !data.pages || !data.pages.length) {
-                    box.style.display = "none";
-                    return;
-                }
-
-                body.innerHTML = "";
-                data.pages.forEach((pg) => {
-                    const fig = document.createElement("figure");
-                    const img = document.createElement("img");
-                    img.src = pg.image;
-                    img.alt = pg.page + "쪽 마스킹 미리보기";
-                    const cap = document.createElement("figcaption");
-                    cap.textContent = pg.page + "쪽";
-                    fig.appendChild(img);
-                    fig.appendChild(cap);
-                    body.appendChild(fig);
-                });
+                if (!data.ok || !data.pages || !data.pages.length) return;
 
                 const kinds = Object.entries(data.counts || {});
                 const total = kinds.reduce((sum, [, v]) => sum + v, 0);
                 let text = total
                     ? "민감정보 " + total + "건을 가렸습니다 ("
-                      + kinds.map(([k, v]) => k + " " + v + "건").join(", ") + "). "
-                    : "가릴 민감정보를 찾지 못했습니다. ";
-                text += "자동 인식은 100%가 아닙니다. 검은 박스가 빠진 개인정보가 없는지 "
-                      + "확인한 뒤 점검해 주세요.";
+                      + kinds.map(([k, v]) => k + " " + v + "건").join(", ") + ")."
+                    : "가릴 민감정보를 찾지 못했습니다.";
+                text += " 자동 인식은 100%가 아닙니다. 남은 개인정보가 없는지 확인해 주세요.";
                 if (data.truncated) {
                     text += " (" + data.total_pages + "쪽 중 앞 " + data.pages.length + "쪽만 표시)";
                 }
-                note.textContent = text;
+                showMaskPreview(data.pages, text);
             } catch (e) {
-                box.style.display = "none";
+                // 미리보기는 부가 기능이다. 실패해도 점검 흐름을 막지 않는다.
             }
         }
 
-        fileInput.addEventListener("change", () => {
-            handleFile(fileInput.files[0]);
-        });
-
-        ["dragenter", "dragover"].forEach((eventName) => {
-            dropZone.addEventListener(eventName, (event) => {
-                event.preventDefault();
-                dropZone.classList.add("dragging");
-            });
-        });
-
-        ["dragleave", "drop"].forEach((eventName) => {
-            dropZone.addEventListener(eventName, (event) => {
-                event.preventDefault();
-                dropZone.classList.remove("dragging");
-            });
-        });
-
-        dropZone.addEventListener("drop", (event) => {
-            const file = event.dataTransfer.files[0];
-
-            if (file) {
-                const transfer = new DataTransfer();
-                transfer.items.add(file);
-                fileInput.files = transfer.files;
-                handleFile(file);
-            }
-        });
-
-        removeFileButton.addEventListener("click", () => {
-            fileInput.value = "";
-            selectedFile.classList.add("hidden");
-            dropZone.classList.remove("hidden");
-            resultFileName.textContent = "근로계약서.pdf";
-            updateAnalyzeButton();
-        });
-
-        contractText.addEventListener("input", () => {
-            textCount.textContent =
-                `${contractText.value.trim().length.toLocaleString()}자 입력`;
-
-            updateAnalyzeButton();
-        });
-
         /* 예시 계약서 넣기.
-           전에는 버튼 안에 문장을 손으로 박아 뒀는데 두 가지가 문제였다.
-           들여쓰기가 그대로 들어가 조항 분할이 흐트러졌고, 그 문장이 어디서 왔는지
-           알 수 없었다. 법률 도구에서 출처 없는 예시는 그 자체로 신뢰를 깎는다.
-           이제 서버의 샘플을 그대로 받아 오고, 출처를 화면에 같이 보여준다. */
+           서버의 샘플을 그대로 받아 오고, 출처를 화면에 같이 보여준다.
+           법률 도구에서 출처 없는 예시는 그 자체로 신뢰를 깎는다. */
         let sampleList = null;
 
         async function loadSamples() {
@@ -1420,7 +1402,7 @@
         function sampleChooser(samples) {
             const box = document.getElementById("samplePicker");
             if (!box) return;
-            box.innerHTML = samples.map((s, i) => `
+            box.innerHTML = samples.map((s) => `
                 <button type="button" class="text-button sample-pick" data-sample="${s.id}">
                     ${s.name}
                 </button>`).join("");
@@ -1514,32 +1496,69 @@
                     // 브라우저 OCR 로 넘긴다. 파일이 서버로 가지 않으므로 개인정보 면에서도
                     // 이쪽이 낫다. 읽은 글자는 바로 판정하지 않고 입력창에 채워
                     // 사용자가 확인·수정한 뒤 직접 누르게 한다 — OCR 은 틀릴 수 있다.
+                    // 사진·스캔본 PDF. 서버는 글자 위치를 모르므로 브라우저에서 읽는다.
+                    //
+                    // 전에는 여기서 서버의 "못 읽었다" 문구와 "읽어서 넣었다" 문구를
+                    // 이어 붙여 띄웠다. 성공했는데도 실패처럼 보였다. 이제 서버 문구는
+                    // 버리고, 무엇을 했는지만 한 문장으로 알린다.
                     const ocrReasons = ["scanned", "empty", "broken_text_layer"];
                     if (activeInputType === "file" && ocrReasons.includes(result.reason)) {
                         const file = fileInput.files[0];
-                        analyzeButton.textContent = "글자를 읽는 중입니다...";
+                        const original = analyzeButton.textContent;
+
                         try {
-                            const text = OCR.tidy(
-                                await OCR.scannedPdfToText(file, function (m) {
-                                    analyzeButton.textContent = m;
-                                })
+                            analyzeButton.disabled = true;
+                            analyzeButton.textContent = "사진에서 글자를 읽는 중입니다...";
+
+                            // 글자를 읽으면서 개인정보 자리에 검은 박스를 덮은 그림도 같이 만든다.
+                            // 사진에는 이름과 주민번호가 그대로 찍혀 있으므로,
+                            // 가려진 것을 눈으로 확인할 수 있어야 한다.
+                            const out = await OCR.maskedPreview(
+                                file,
+                                function (m) { analyzeButton.textContent = m; }
                             );
-                            if (text && text.trim().length >= 20) {
-                                contractText.value = text;
-                                // 직접 입력 탭으로 옮겨 사용자가 내용을 확인하게 한다
+
+                            if (out.pages && out.pages.length) {
+                                showMaskPreview(
+                                    out.pages,
+                                    out.boxes
+                                        ? `민감정보로 보이는 ${out.boxes}곳을 가렸습니다. `
+                                          + "사진은 인식이 완전하지 않으니 남은 개인정보가 없는지 확인해 주세요."
+                                        : "이 파일은 사진이라 글자 위치를 찾지 못했습니다. "
+                                          + "아래 입력창에서 직접 확인하고 지워 주세요."
+                                );
+                            }
+
+                            if (out.text && out.text.trim().length >= 20) {
+                                contractText.value = out.text;
                                 const textTab = document.querySelector('[data-input-tab="text"]');
                                 if (textTab) textTab.click();
-                                window.alert(
-                                    (result.message || "") +
-                                    "\n\n글자를 읽어 입력창에 넣었습니다. "
-                                    + "잘못 읽은 부분이 없는지 확인한 뒤 다시 눌러주세요."
+                                contractText.dispatchEvent(new Event("input"));
+
+                                showUploadNotice(
+                                    "사진에서 글자를 읽어 아래 입력창에 넣었습니다.",
+                                    "사진은 인식이 완전하지 않습니다. 내용을 훑어보고 틀린 곳을 고친 뒤 "
+                                    + "다시 [계약서 점검하기]를 눌러주세요."
                                 );
                                 return;
                             }
+
+                            showUploadNotice(
+                                "사진에서 글자를 충분히 읽지 못했습니다.",
+                                "더 밝은 곳에서 반듯하게 다시 찍거나, 계약서 내용을 복사해 "
+                                + "아래 입력창에 붙여넣어 주세요."
+                            );
+                            return;
                         } catch (e) {
-                            // OCR 실패는 아래 공통 안내로 떨어뜨린다
+                            showUploadNotice(
+                                "사진에서 글자를 읽지 못했습니다.",
+                                "계약서 내용을 복사해 아래 입력창에 붙여넣어 주세요."
+                            );
+                            return;
                         } finally {
-                            analyzeButton.textContent = "계약서 점검하기";
+                            analyzeButton.textContent = original;
+                            analyzeButton.disabled = false;
+                            updateAnalyzeButton();
                         }
                     }
 

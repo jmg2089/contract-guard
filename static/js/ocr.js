@@ -230,6 +230,132 @@ const OCR = (() => {
     return parts.join("\n");
   }
 
+  /* ── 사진·스캔본도 가린 그림을 보여준다 ───────────────────────────────
+   *
+   * 글자가 들어 있는 PDF는 서버가 좌표를 알고 있어 검은 박스를 덮을 수 있다.
+   * 그런데 휴대폰으로 찍은 사진이나 카카오톡으로 받은 PDF는 글자가 이미지라
+   * 서버가 좌표를 모른다. 그동안 이런 파일은 미리보기 없이 글자만 채워 줬다.
+   *
+   * 사용자 입장에서는 이쪽이 더 불안하다. 사진에는 이름도 주민번호도 그대로
+   * 찍혀 있는데 가려진 것을 볼 수가 없기 때문이다.
+   *
+   * 그래서 OCR 이 돌려주는 단어 좌표를 받아 브라우저에서 직접 덮는다.
+   * 좌표를 못 받는 경우(엔진 버전 차이 등)에는 그림만 보여주고 그 사실을
+   * 그대로 알린다. 가렸다고 거짓말하지 않는다.
+   */
+  async function readWithBoxes(canvas, onProgress) {
+    await loadScript(TESSERACT_CDN);
+    const worker = await Tesseract.createWorker("kor+eng", 1, {
+      logger: (m) => {
+        if (m.status === "recognizing text" && onProgress) onProgress(m.progress);
+      },
+    });
+    try {
+      await worker.setParameters({ tessedit_pageseg_mode: "6" });
+      // blocks:true 를 줘야 단어 좌표가 따라온다. 기본값은 글자만 돌려준다.
+      const { data } = await worker.recognize(canvas, {}, { text: true, blocks: true });
+      const words = [];
+      const walk = (node) => {
+        if (!node || typeof node !== "object") return;
+        if (Array.isArray(node)) return node.forEach(walk);
+        if (node.text !== undefined && node.bbox && node.words === undefined) {
+          words.push({ text: node.text, bbox: node.bbox });
+        }
+        ["blocks", "paragraphs", "lines", "words"].forEach((k) => {
+          if (node[k]) walk(node[k]);
+        });
+      };
+      try { walk(data.blocks); } catch (e) { /* 좌표 없이 진행 */ }
+      return { text: data.text || "", words };
+    } finally {
+      await worker.terminate();
+    }
+  }
+
+  /* 민감정보가 들어 있는 단어의 좌표를 찾아 캔버스에 검은 박스를 덮는다.
+     판정 기준은 mask.js 와 같다. 두 곳이 어긋나면 안 된다. */
+  function redactCanvas(canvas, words) {
+    if (!words || !words.length || typeof Mask === "undefined") return 0;
+
+    // 줄 단위로 묶어야 '성명 : 홍길동' 처럼 라벨과 값이 떨어져 있어도 잡힌다
+    const rows = {};
+    words.forEach((w) => {
+      const key = Math.round((w.bbox.y0 + w.bbox.y1) / 2 / 12);
+      (rows[key] = rows[key] || []).push(w);
+    });
+
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#111";
+    let count = 0;
+
+    Object.values(rows).forEach((row) => {
+      row.sort((a, b) => a.bbox.x0 - b.bbox.x0);
+      const line = row.map((w) => w.text).join(" ");
+      const masked = Mask.apply(line);
+      if (!Object.keys(masked.counts).length) return;
+
+      // 어느 단어가 가려졌는지 알아내려면 단어별로 다시 확인한다.
+      // 라벨(성명, 연락처 등) 다음 단어들이 값이므로 그 뒤를 덮는다.
+      let hitLabel = false;
+      row.forEach((w) => {
+        const single = Mask.apply(w.text);
+        const isValue = Object.keys(single.counts).length > 0;
+        if (/^(성\s*명|이\s*름|주\s*소|연\s*락\s*처|생\s*년\s*월\s*일|주민등록번호|사업체명|대\s*표\s*자|이\s*메\s*일|급여계좌|계좌번호)/.test(w.text)) {
+          hitLabel = true;
+          return;
+        }
+        if (isValue || (hitLabel && !/^[:：]$/.test(w.text))) {
+          const b = w.bbox;
+          ctx.fillRect(b.x0 - 2, b.y0 - 2, b.x1 - b.x0 + 4, b.y1 - b.y0 + 4);
+          count += 1;
+        }
+      });
+    });
+    return count;
+  }
+
+  /* 파일(사진·스캔 PDF) -> [{ image, boxes }] 미리보기용 그림 목록 + 읽어낸 글자 */
+  async function maskedPreview(file, onStatus, onProgress) {
+    const pages = [];
+    let allText = [];
+    let boxTotal = 0;
+    let canvases = [];
+
+    if (file.type.startsWith("image/")) {
+      canvases = [await preprocess(file)];
+    } else {
+      await loadScript(PDFJS_CDN);
+      pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+      const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+      const n = Math.min(pdf.numPages, MAX_PAGES);
+      for (let i = 1; i <= n; i++) {
+        if (onStatus) onStatus(`${i}/${n}쪽을 읽는 중입니다...`);
+        const page = await pdf.getPage(i);
+        const base = page.getViewport({ scale: 1.0 });
+        const scale = Math.min(4.0, Math.max(1.5, WORK_WIDTH / base.width));
+        const viewport = page.getViewport({ scale });
+        const canvas = document.createElement("canvas");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        canvases.push(enhance(canvas));
+      }
+    }
+
+    for (let i = 0; i < canvases.length; i++) {
+      const canvas = canvases[i];
+      const { text, words } = await readWithBoxes(canvas, onProgress);
+      allText.push(text);
+      boxTotal += redactCanvas(canvas, words);
+      pages.push({ page: i + 1, image: canvas.toDataURL("image/png") });
+    }
+
+    return { pages, text: tidy(allText.join("\n")), boxes: boxTotal };
+  }
+
   /* 읽어낸 글자를 정리한다. OCR 결과는 줄바꿈과 공백이 지저분하다 */
   function tidy(text) {
     return text
@@ -242,5 +368,5 @@ const OCR = (() => {
       .trim();
   }
 
-  return { imageToText, scannedPdfToText, tidy, preprocess, enhance, quality };
+  return { imageToText, scannedPdfToText, maskedPreview, tidy, preprocess, enhance, quality };
 })();
