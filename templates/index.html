@@ -1387,6 +1387,50 @@
             }
         }
 
+        fileInput.addEventListener("change", () => {
+            handleFile(fileInput.files[0]);
+        });
+
+        ["dragenter", "dragover"].forEach((eventName) => {
+            dropZone.addEventListener(eventName, (event) => {
+                event.preventDefault();
+                dropZone.classList.add("dragging");
+            });
+        });
+
+        ["dragleave", "drop"].forEach((eventName) => {
+            dropZone.addEventListener(eventName, (event) => {
+                event.preventDefault();
+                dropZone.classList.remove("dragging");
+            });
+        });
+
+        dropZone.addEventListener("drop", (event) => {
+            const file = event.dataTransfer.files[0];
+
+            if (file) {
+                const transfer = new DataTransfer();
+                transfer.items.add(file);
+                fileInput.files = transfer.files;
+                handleFile(file);
+            }
+        });
+
+        removeFileButton.addEventListener("click", () => {
+            fileInput.value = "";
+            selectedFile.classList.add("hidden");
+            dropZone.classList.remove("hidden");
+            resultFileName.textContent = "근로계약서.pdf";
+            updateAnalyzeButton();
+        });
+
+        contractText.addEventListener("input", () => {
+            textCount.textContent =
+                `${contractText.value.trim().length.toLocaleString()}자 입력`;
+
+            updateAnalyzeButton();
+        });
+
         /* 예시 계약서 넣기.
            서버의 샘플을 그대로 받아 오고, 출처를 화면에 같이 보여준다.
            법률 도구에서 출처 없는 예시는 그 자체로 신뢰를 깎는다. */
